@@ -36,7 +36,13 @@ jobs:
             echo "::error::Le secret GPG_PRIVATE_KEY est manquant. Lance scripts/creer-cle.sh (voir README)."
             exit 1
           fi
-          printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --import
+          # gpg renvoie un code d'erreur au moindre avertissement (ligne en trop
+          # dans le secret…) même quand l'import réussit : on vérifie nous-mêmes.
+          printf '%s\n' "$GPG_PRIVATE_KEY" | sed 's/\r$//' | gpg --batch --import || true
+          if ! gpg --list-secret-keys --with-colons | grep -q '^sec'; then
+            echo "::error::La clé privée n'a pas pu être importée. Vérifie le contenu du secret GPG_PRIVATE_KEY."
+            exit 1
+          fi
           gpg --list-secret-keys
 
       - name: Outils
