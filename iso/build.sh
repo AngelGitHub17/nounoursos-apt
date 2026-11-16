@@ -104,32 +104,35 @@ cp -a "$ROOT/$EDITION/." config/
 chmod +x config/hooks/live/*.hook.chroot 2>/dev/null || true
 find config/includes.chroot/usr/bin config/includes.chroot/usr/local/bin -type f -exec chmod +x {} + 2>/dev/null || true
 
-# Dépôt NounoursOS (GitHub Pages) : s'il est en ligne, l'ISO l'utilise et
-# installe les paquets NounoursOS -> les machines recevront les mises à jour.
-# Méthode moderne (Debian 13 n'a plus apt-key) : la clé est posée dans
-# /usr/share/keyrings AVANT l'installation des paquets, et la source y fait
-# référence via signed-by (même chemin que le paquet nounoursos-archive-keyring).
+# Dépôt NounoursOS (GitHub Pages) : s'il est en ligne, on télécharge les paquets
+# NounoursOS et on les met dans config/packages.chroot/ : live-build les installe
+# directement (pas besoin que le dépôt soit configuré pendant le build).
+# Le paquet nounoursos-archive-keyring ajoute ensuite le dépôt + sa clé au système
+# installé -> les machines recevront les mises à jour.
 if [ -f "$ROOT/../depot.conf" ]; then
   # shellcheck source=/dev/null
   . "$ROOT/../depot.conf"
-  command -v gpg >/dev/null || apt-get install -y -q gnupg >/dev/null
-  KEYDIR=config/includes.chroot_before_packages/usr/share/keyrings
-  KEYRING=/usr/share/keyrings/nounoursos-archive-keyring.gpg
-  PKGS_URL="$URL/dists/$SUITE/$COMPONENT/binary-amd64/Packages"
-  mkdir -p config/archives "$KEYDIR"
-  if curl -fsSL --max-time 20 "$URL/nounoursos.asc" | gpg --dearmor > "$KEYDIR/nounoursos-archive-keyring.gpg" \
-     && [ -s "$KEYDIR/nounoursos-archive-keyring.gpg" ] \
-     && curl -fsSL --max-time 20 "$PKGS_URL" | grep -q '^Package: nounoursos-release$'; then
-    log "Dépôt NounoursOS trouvé : $URL"
-    echo "deb [signed-by=$KEYRING] $URL $SUITE $COMPONENT" > config/archives/nounoursos.list.chroot
-    {
-      echo "nounoursos-archive-keyring"
-      echo "nounoursos-release"
-      if [ "$EDITION" = "desktop" ]; then echo "nounoursos-desktop"; fi
-    } > config/package-lists/nounoursos-depot.list.chroot
+  WANT="nounoursos-archive-keyring nounoursos-release"
+  if [ "$EDITION" = "desktop" ]; then WANT="$WANT nounoursos-desktop"; fi
+  IDX=$(curl -fsSL --max-time 30 "$URL/dists/$SUITE/$COMPONENT/binary-amd64/Packages" || true)
+  mkdir -p config/packages.chroot
+  ok=1
+  for pkg in $WANT; do
+    # Fichier + empreinte SHA-256 du paquet, lus dans l'index du dépôt
+    file=""; sum=""
+    read -r file sum < <(printf '%s\n' "$IDX" | awk -v p="$pkg" '
+      /^Package: / {cur=$2} cur==p && /^Filename: / {f=$2} cur==p && /^SHA256: / {s=$2}
+      /^$/ {if (f!="") {print f, s; exit}} END {if (f!="") print f, s}' | head -1) || true
+    if [ -z "${file:-}" ] || ! curl -fsSL --max-time 120 "$URL/$file" -o "config/packages.chroot/$(basename "$file")" \
+       || ! echo "$sum  config/packages.chroot/$(basename "$file")" | sha256sum -c --quiet -; then
+      ok=0; break
+    fi
+  done
+  if [ "$ok" = 1 ]; then
+    log "Dépôt NounoursOS : paquets intégrés ($WANT)"
   else
-    rm -rf "$KEYDIR" config/archives/nounoursos.*
-    echo "⚠  Dépôt NounoursOS injoignable ou vide ($URL) : ISO construite sans lui." >&2
+    rm -rf config/packages.chroot
+    echo "⚠  Dépôt NounoursOS injoignable ou incomplet ($URL) : ISO construite sans ses paquets." >&2
   fi
 fi
 
