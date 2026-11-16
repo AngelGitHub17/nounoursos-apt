@@ -67,7 +67,7 @@ jobs:
             debian:trixie bash -c "
               set -e
               apt-get update -q
-              apt-get install -y -q live-build curl ca-certificates
+              apt-get install -y -q live-build curl ca-certificates gnupg
               ./build.sh ${{ matrix.edition }}
             "
           sudo chown -R "$(id -u):$(id -g)" "$WORK/iso/out"

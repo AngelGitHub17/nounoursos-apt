@@ -105,22 +105,30 @@ find config/includes.chroot/usr/bin config/includes.chroot/usr/local/bin -type f
 
 # Dépôt NounoursOS (GitHub Pages) : s'il est en ligne, l'ISO l'utilise et
 # installe les paquets NounoursOS -> les machines recevront les mises à jour.
+# Méthode moderne (Debian 13 n'a plus apt-key) : la clé est posée dans
+# /usr/share/keyrings AVANT l'installation des paquets, et la source y fait
+# référence via signed-by (même chemin que le paquet nounoursos-archive-keyring).
 if [ -f "$ROOT/../depot.conf" ]; then
   # shellcheck source=/dev/null
   . "$ROOT/../depot.conf"
-  mkdir -p config/archives
-  if curl -fsSL --max-time 20 "$URL/nounoursos.asc" -o config/archives/nounoursos.key.chroot \
-     && curl -fsSL --max-time 20 -o /dev/null "$URL/dists/$SUITE/InRelease"; then
+  command -v gpg >/dev/null || apt-get install -y -q gnupg >/dev/null
+  KEYDIR=config/includes.chroot_before_packages/usr/share/keyrings
+  KEYRING=/usr/share/keyrings/nounoursos-archive-keyring.gpg
+  PKGS_URL="$URL/dists/$SUITE/$COMPONENT/binary-amd64/Packages"
+  mkdir -p config/archives "$KEYDIR"
+  if curl -fsSL --max-time 20 "$URL/nounoursos.asc" | gpg --dearmor > "$KEYDIR/nounoursos-archive-keyring.gpg" \
+     && [ -s "$KEYDIR/nounoursos-archive-keyring.gpg" ] \
+     && curl -fsSL --max-time 20 "$PKGS_URL" | grep -q '^Package: nounoursos-release$'; then
     log "Dépôt NounoursOS trouvé : $URL"
-    echo "deb $URL $SUITE $COMPONENT" > config/archives/nounoursos.list.chroot
+    echo "deb [signed-by=$KEYRING] $URL $SUITE $COMPONENT" > config/archives/nounoursos.list.chroot
     {
       echo "nounoursos-archive-keyring"
       echo "nounoursos-release"
       if [ "$EDITION" = "desktop" ]; then echo "nounoursos-desktop"; fi
     } > config/package-lists/nounoursos-depot.list.chroot
   else
-    rm -f config/archives/nounoursos.key.chroot
-    echo "⚠  Dépôt NounoursOS injoignable ($URL) : ISO construite sans lui (pas de mises à jour NounoursOS)." >&2
+    rm -rf "$KEYDIR" config/archives/nounoursos.*
+    echo "⚠  Dépôt NounoursOS injoignable ou vide ($URL) : ISO construite sans lui." >&2
   fi
 fi
 
