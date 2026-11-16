@@ -1,0 +1,64 @@
+name: Publier le dépôt APT NounoursOS
+
+# Chaque push sur main qui touche NounoursOS reconstruit les paquets
+# et republie le dépôt. Lançable aussi à la main (onglet Actions).
+on:
+  push:
+    branches: [main]
+    paths:
+      - "iso/**"
+      - "nouveautes/**"
+      - "scripts/**"
+      - "depot.conf"
+      - ".github/workflows/publier.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  construire:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Importer la clé de signature
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          if [ -z "$GPG_PRIVATE_KEY" ]; then
+            echo "::error::Le secret GPG_PRIVATE_KEY est manquant. Lance scripts/creer-cle.sh (voir README)."
+            exit 1
+          fi
+          printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --import
+          gpg --list-secret-keys
+
+      - name: Outils
+        run: sudo apt-get update -q && sudo apt-get install -y -q apt-utils xz-utils
+
+      - name: Construire les paquets
+        run: ./scripts/construire-paquets.sh "${{ github.run_number }}"
+
+      - name: Construire le dépôt signé
+        run: ./scripts/construire-depot.sh
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  publier:
+    needs: construire
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    steps:
+      - id: deploiement
+        uses: actions/deploy-pages@v4

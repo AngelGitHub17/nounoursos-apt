@@ -1,0 +1,34 @@
+#!/bin/sh
+# NounoursOS Server — réglages de l'édition serveur
+set -e
+
+echo "[NounoursOS Server] Pare-feu"
+# ufw bloque déjà tout en entrée par défaut ; on autorise seulement SSH. ufw est activé au
+# démarrage via son service (ENABLED=yes), pas besoin de "ufw enable" dans le chroot.
+sed -i 's/^ENABLED=.*/ENABLED=yes/' /etc/ufw/ufw.conf
+# Autoriser SSH (règle écrite directement, ufw ne tourne pas dans le chroot)
+if ! grep -q 'dport 22 ' /etc/ufw/user.rules; then
+  sed -i '/^### RULES ###/a ### tuple ### allow tcp 22 0.0.0.0/0 any 0.0.0.0/0 in\n-A ufw-user-input -p tcp --dport 22 -j ACCEPT' /etc/ufw/user.rules
+fi
+if ! grep -q 'dport 22 ' /etc/ufw/user6.rules; then
+  sed -i '/^### RULES ###/a ### tuple ### allow tcp 22 ::/0 any ::/0 in\n-A ufw6-user-input -p tcp --dport 22 -j ACCEPT' /etc/ufw/user6.rules
+fi
+
+echo "[NounoursOS Server] Mises à jour de sécurité automatiques"
+cat > /etc/apt/apt.conf.d/20auto-upgrades <<'EOF'
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+EOF
+
+echo "[NounoursOS Server] fail2ban (SSH)"
+mkdir -p /etc/fail2ban/jail.d
+cat > /etc/fail2ban/jail.d/nounoursos.local <<'EOF'
+[sshd]
+enabled = true
+backend = systemd
+EOF
+
+echo "[NounoursOS Server] Démarrage en mode texte"
+systemctl set-default multi-user.target
+
+echo "[NounoursOS Server] OK"

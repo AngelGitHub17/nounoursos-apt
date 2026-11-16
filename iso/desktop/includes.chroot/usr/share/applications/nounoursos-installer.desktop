@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Installer NounoursOS
+Comment=Installer NounoursOS sur cet ordinateur
+Exec=nounoursos-installer
+# TryExec : l'entrée disparaît toute seule une fois NounoursOS installé
+# (l'installateur se désinstalle à la fin de l'installation)
+TryExec=calamares
+Icon=nounoursos
+Terminal=false
+Categories=System;

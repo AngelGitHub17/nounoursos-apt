@@ -1,0 +1,33 @@
+#!/bin/bash
+# NounoursOS — lance l'installateur Calamares.
+# Debian a changé le nom/emplacement du lanceur selon les versions
+# (install-debian, calamares-install-debian…), on essaie donc tout, dans l'ordre.
+
+log() { logger -t nounoursos-installer "$*" 2>/dev/null; echo "$*" >&2; }
+
+# 1) Le lanceur fourni par calamares-settings-debian, quel que soit son nom
+for f in /usr/share/applications/calamares-install-debian.desktop \
+         /usr/share/applications/install-debian.desktop; do
+  [ -f "$f" ] || continue
+  cmd=$(sed -n 's/^Exec=//p' "$f" | head -1 | sed -E 's/ *%[fFuUick]//g')
+  bin=${cmd%% *}
+  if [ -n "$cmd" ] && { command -v "$bin" >/dev/null || [ -x "$bin" ]; }; then
+    log "Lancement via $f : $cmd"
+    exec sh -c "$cmd"
+  fi
+done
+
+# 2) Le script install-debian, où qu'il soit
+for c in install-debian /usr/sbin/install-debian /usr/bin/install-debian; do
+  if command -v "$c" >/dev/null || [ -x "$c" ]; then
+    log "Lancement via $c"; exec "$c"
+  fi
+done
+
+# 3) Calamares directement (en live, l'utilisateur a sudo sans mot de passe)
+if sudo -n true 2>/dev/null; then
+  log "Lancement via sudo -E calamares"
+  exec sudo -E calamares
+fi
+log "Lancement via pkexec calamares"
+exec pkexec calamares

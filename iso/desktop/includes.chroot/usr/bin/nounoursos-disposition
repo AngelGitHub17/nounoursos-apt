@@ -1,0 +1,42 @@
+#!/bin/bash
+# NounoursOS — choix de la disposition du bureau
+#   nounoursos-disposition            -> fenêtre de choix
+#   nounoursos-disposition mac        -> applique directement la disposition Mac
+#   nounoursos-disposition classique  -> applique directement la disposition Classique
+set -u
+
+APPLY_LNF=$(command -v plasma-apply-lookandfeel || command -v lookandfeeltool)
+
+apply() {
+  local lnf left right
+  case "$1" in
+    mac)       lnf=org.nounoursos.mac;       left="XIA"; right="" ;;
+    classique) lnf=org.nounoursos.classique; left="M";   right="IAX" ;;
+    *) echo "Disposition inconnue : $1 (mac | classique)" >&2; return 1 ;;
+  esac
+
+  "$APPLY_LNF" --apply "$lnf" --resetLayout
+
+  # Boutons de fenêtre (à gauche façon macOS, ou à droite)
+  for grp in org.kde.kdecoration2 org.kde.kdecoration3; do
+    kwriteconfig6 --file kwinrc --group "$grp" --key ButtonsOnLeft  "$left"
+    kwriteconfig6 --file kwinrc --group "$grp" --key ButtonsOnRight "$right"
+  done
+  dbus-send --session --type=signal /KWin org.kde.KWin.reloadConfig 2>/dev/null || true
+
+  mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/nounoursos"
+  echo "$1" > "${XDG_CONFIG_HOME:-$HOME/.config}/nounoursos/disposition"
+}
+
+if [ $# -ge 1 ]; then
+  apply "$1"
+  exit $?
+fi
+
+choice=$(kdialog --title "NounoursOS" \
+  --icon nounoursos \
+  --radiolist "Quelle disposition de bureau préfères-tu ?\n(tu pourras changer plus tard depuis le menu : « Disposition NounoursOS »)" \
+  classique "Classique : une barre en bas, comme Windows / KDE" on \
+  mac       "Mac : barre de menus en haut + dock en bas" off) || exit 0
+
+apply "$choice"

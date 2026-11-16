@@ -1,0 +1,55 @@
+# --- NounoursOS (édition bureau) ---
+
+# KDE Plasma 6 (base minimale, on choisit les applis nous-mêmes)
+kde-plasma-desktop
+plasma-nm
+plasma-pa
+plasma-discover
+kinfocenter
+systemsettings
+xdg-desktop-portal-kde
+kdialog
+sddm
+sddm-theme-breeze
+
+# Applications KDE
+dolphin
+konsole
+kate
+ark
+okular
+gwenview
+kde-spectacle
+kcalc
+partitionmanager
+
+# Internet & multimédia
+firefox-esr
+firefox-esr-l10n-fr
+vlc
+
+# Polices
+fonts-noto
+fonts-noto-color-emoji
+
+# Démarrage graphique
+plymouth
+plymouth-themes
+
+# Réseau
+network-manager
+
+# Installateur graphique
+calamares
+calamares-settings-debian
+
+# Applications NounoursOS (Paramètres, Bienvenue, Mise à jour)
+python3-pyqt6
+packagekit
+packagekit-tools
+unattended-upgrades
+pciutils
+xdg-user-dirs
+bluedevil
+wireplumber
+kde-cli-tools

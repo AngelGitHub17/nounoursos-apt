@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Paramètres
+GenericName=Réglages du système
+Comment=Wi-Fi, son, apparence, mises à jour et tous les réglages de NounoursOS
+Exec=nounoursos-parametres
+Icon=preferences-system
+Categories=Settings;Qt;
+Keywords=réglages;préférences;configuration;settings;wifi;son;thème;
+StartupNotify=true

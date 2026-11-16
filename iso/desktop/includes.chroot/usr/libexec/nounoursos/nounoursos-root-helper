@@ -1,0 +1,14 @@
+#!/bin/sh
+# NounoursOS — actions administrateur appelées via pkexec par les applis NounoursOS.
+# Liste fermée d'actions : rien d'autre ne peut être exécuté par ce biais.
+set -e
+case "$1" in
+  auto-securite)
+    case "$2" in on) v=1 ;; off) v=0 ;; *) echo "usage: auto-securite on|off" >&2; exit 2 ;; esac
+    cat > /etc/apt/apt.conf.d/20auto-upgrades <<CONF
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "$v";
+CONF
+    ;;
+  *) echo "Action inconnue : $1" >&2; exit 2 ;;
+esac

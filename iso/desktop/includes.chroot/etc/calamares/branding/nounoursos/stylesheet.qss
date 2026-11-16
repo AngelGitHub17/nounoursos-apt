@@ -1,0 +1,19 @@
+/* NounoursOS — habillage de l'installateur Calamares */
+QWidget { font-family: "Noto Sans"; font-size: 10pt; }
+QPushButton {
+    background: #FFFFFF; border: 1px solid #E6DED6; border-radius: 8px;
+    padding: 7px 18px; min-height: 22px;
+}
+QPushButton:hover { background: #F3ECE5; }
+QPushButton:default, QPushButton#view-button-next {
+    background: #C9864B; color: white; border: none; font-weight: bold;
+}
+QPushButton:default:hover, QPushButton#view-button-next:hover { background: #B8733D; }
+QPushButton:disabled { color: #A79FB0; background: #EFE9E3; }
+QLineEdit, QComboBox {
+    border: 1px solid #E6DED6; border-radius: 7px; padding: 5px 8px; background: white;
+}
+QLineEdit:focus, QComboBox:focus { border: 2px solid #C9864B; }
+QProgressBar { border: none; background: #E6DED6; border-radius: 4px; max-height: 8px; text-align: center; color: transparent; }
+QProgressBar::chunk { background: #C9864B; border-radius: 4px; }
+QCheckBox::indicator:checked, QRadioButton::indicator:checked { background: #C9864B; }

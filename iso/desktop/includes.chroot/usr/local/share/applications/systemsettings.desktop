@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Réglages avancés (KDE)
+Exec=systemsettings
+Icon=preferences-system
+NoDisplay=true

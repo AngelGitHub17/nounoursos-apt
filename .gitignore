@@ -1,0 +1,11 @@
+# Produits de build
+dist/
+public/
+.build/
+iso/build/
+iso/out/
+__pycache__/
+
+# NE JAMAIS committer la clé privée
+cle-privee-*.asc
+*.key

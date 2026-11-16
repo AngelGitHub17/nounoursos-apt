@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Disposition NounoursOS
+GenericName=Choisir l'apparence du bureau
+Comment=Basculer entre la disposition Classique et la disposition Mac
+Exec=nounoursos-disposition
+Icon=nounoursos
+Categories=Settings;DesktopSettings;Qt;KDE;
+Keywords=dock;mac;barre;panneau;disposition;

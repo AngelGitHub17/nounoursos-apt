@@ -1,0 +1,40 @@
+#!/bin/sh
+# NounoursOS — personnalisation de l'édition bureau
+set -e
+
+echo "[NounoursOS] Écran de démarrage Plymouth"
+# On part du thème "spinner" (animations), on remplace le logo et les couleurs
+T=/usr/share/plymouth/themes
+rm -rf "$T/nounoursos"
+cp -a "$T/spinner" "$T/nounoursos"
+rm -f "$T/nounoursos/spinner.plymouth"
+cp /usr/share/nounoursos/plymouth/nounoursos.plymouth "$T/nounoursos/nounoursos.plymouth"
+cp /usr/share/nounoursos/plymouth/watermark.png        "$T/nounoursos/watermark.png"
+plymouth-set-default-theme nounoursos
+
+echo "[NounoursOS] Installateur Calamares"
+# Notre branding à la place de celui de Debian
+sed -i 's/^branding:.*/branding: nounoursos/' /etc/calamares/settings.conf
+# On masque le lanceur "Install Debian" (le nôtre s'appelle "Installer NounoursOS")
+for f in /usr/share/applications/calamares-install-debian.desktop \
+         /usr/share/applications/install-debian.desktop; do
+  if [ -f "$f" ]; then sed -i '/^\[Desktop Entry\]/a NoDisplay=true' "$f"; fi
+done
+# Et l'icône "Install Debian" posée sur le bureau en live
+if [ -f /etc/xdg/autostart/calamares-desktop-icon.desktop ]; then
+  sed -i '/^\[Desktop Entry\]/a Hidden=true' /etc/xdg/autostart/calamares-desktop-icon.desktop
+fi
+
+echo "[NounoursOS] Notifications de mise à jour : celles de NounoursOS remplacent celles de Discover"
+for f in /etc/xdg/autostart/org.kde.discover.notifier.desktop; do
+  if [ -f "$f" ]; then sed -i '/^\[Desktop Entry\]/a Hidden=true' "$f"; fi
+done
+
+echo "[NounoursOS] Droits des outils NounoursOS"
+chmod 755 /usr/bin/nounoursos-* /usr/libexec/nounoursos/nounoursos-root-helper
+python3 -m compileall -q /usr/lib/nounoursos/python || true
+
+echo "[NounoursOS] Initramfs (pour prendre en compte Plymouth)"
+update-initramfs -u -k all
+
+echo "[NounoursOS] Bureau OK"

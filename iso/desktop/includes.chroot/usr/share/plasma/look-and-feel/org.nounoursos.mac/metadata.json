@@ -1,0 +1,13 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Authors": [ { "Name": "NounoursCorp" } ],
+        "Description": "Barre en haut avec menu global et dock flottant centré en bas",
+        "Id": "org.nounoursos.mac",
+        "License": "GPL-2.0-or-later",
+        "Name": "NounoursOS Mac",
+        "Version": "1.0",
+        "Website": "https://nounourscorp.fr"
+    },
+    "X-Plasma-APIVersion": "2"
+}

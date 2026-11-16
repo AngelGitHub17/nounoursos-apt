@@ -1,0 +1,34 @@
+#!/bin/sh
+# NounoursOS — branding commun (identité système, GRUB, icônes)
+set -e
+
+echo "[NounoursOS] Branding système"
+
+# 1) Identité : os-release / issue
+#    Ces fichiers appartiennent au paquet base-files. On les "détourne" avec
+#    dpkg-divert pour qu'une mise à jour Debian ne remette pas "Debian" à la place.
+divert() {
+  f="$1"
+  if ! dpkg-divert --list "$f" | grep -q "$f.debian"; then
+    dpkg-divert --local --rename --divert "$f.debian" --add "$f"
+  fi
+}
+
+divert /usr/lib/os-release
+cp /usr/share/nounoursos/os-release /usr/lib/os-release
+ln -sf ../usr/lib/os-release /etc/os-release
+
+divert /etc/issue
+cp /usr/share/nounoursos/issue /etc/issue
+divert /etc/issue.net
+cp /usr/share/nounoursos/issue.net /etc/issue.net
+
+# 2) Icônes
+gtk-update-icon-cache -f -q /usr/share/icons/hicolor 2>/dev/null || true
+
+# 3) Locale française par défaut
+sed -i 's/^# *fr_FR.UTF-8/fr_FR.UTF-8/' /etc/locale.gen
+locale-gen
+update-locale LANG=fr_FR.UTF-8
+
+echo "[NounoursOS] Branding système OK"

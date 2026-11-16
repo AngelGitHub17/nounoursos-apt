@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dépôt NounoursOS</title>
+<link rel="icon" href="logo.png">
+<style>
+  :root { --honey:#C9864B; --night:#1F1A2E; --plum:#3B2A4F; --text:#2B1D3A; --sub:#7A6E7E; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, "Noto Sans", sans-serif; color: var(--text);
+         background: linear-gradient(135deg, var(--night), var(--plum) 55%, var(--honey)); min-height:100vh;
+         display:flex; align-items:center; justify-content:center; padding:32px 16px; }
+  main { background:#F6F2EE; border-radius:22px; max-width:760px; width:100%; padding:40px 44px;
+         box-shadow:0 20px 60px rgba(0,0,0,.35); }
+  header { display:flex; gap:20px; align-items:center; margin-bottom:8px; }
+  header img { width:84px; height:84px; }
+  h1 { margin:0; font-size:2rem; }
+  .sub { color: var(--sub); margin:4px 0 0; }
+  h2 { font-size:1.05rem; margin:28px 0 8px; }
+  pre { background:#fff; border:1px solid #E6DED6; border-radius:12px; padding:14px 16px; overflow-x:auto;
+        font-size:.86rem; line-height:1.5; }
+  ul { padding-left:20px; } li { margin:3px 0; }
+  code { font-size:.9em; }
+  a { color: var(--honey); }
+  footer { margin-top:28px; color:var(--sub); font-size:.85rem; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="logo.png" alt="">
+    <div>
+      <h1>Dépôt NounoursOS</h1>
+      <p class="sub">NounoursOS @VERSION@ « @CODENAME@ » · basé sur Debian (@SUITE@)</p>
+    </div>
+  </header>
+
+  <p>Ce dépôt distribue les mises à jour de NounoursOS. Les machines NounoursOS le connaissent déjà :
+  il n'y a rien à faire, les mises à jour apparaissent dans <strong>Mise à jour de NounoursOS</strong>.</p>
+
+  <h2>Ajouter le dépôt à une Debian 13 existante</h2>
+<pre>curl -fsSL @URL@/nounoursos.asc | sudo gpg --dearmor -o /usr/share/keyrings/nounoursos-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/nounoursos-archive-keyring.gpg] @URL@ @SUITE@ main" \
+  | sudo tee /etc/apt/sources.list.d/nounoursos.list
+sudo apt update && sudo apt install nounoursos-archive-keyring</pre>
+
+  <h2>Paquets disponibles</h2>
+  <ul>@PKGS@</ul>
+
+  <footer>© NounoursCorp · <a href="https://nounourscorp.fr">nounourscorp.fr</a> ·
+    <a href="nounoursos.asc">clé publique</a></footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,5 @@
+#!/usr/bin/python3
+import os, sys
+sys.path.insert(0, os.environ.get("NOUNOURSOS_PY", "/usr/lib/nounoursos/python"))
+from nounoursui.parametres import main
+sys.exit(main())

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>NounoursCorp</vendor>
+  <vendor_url>https://nounourscorp.fr</vendor_url>
+  <icon_name>nounoursos</icon_name>
+  <action id="fr.nounourscorp.nounoursos.root-helper">
+    <description>Modifier un réglage système de NounoursOS</description>
+    <message>Un mot de passe administrateur est nécessaire pour modifier ce réglage de NounoursOS.</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/nounoursos/nounoursos-root-helper</annotate>
+  </action>
+</policyconfig>

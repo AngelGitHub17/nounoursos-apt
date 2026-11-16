@@ -1,0 +1,17 @@
+# --- NounoursOS Server ---
+
+# Accès distant et sécurité
+openssh-server
+ufw
+fail2ban
+unattended-upgrades
+apt-listchanges
+
+# Outils d'admin
+tmux
+rsync
+lsof
+ncdu
+bind9-dnsutils
+man-db
+vim

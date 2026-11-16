@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Mise à jour de NounoursOS
+Comment=Installer les nouvelles versions de NounoursOS et les correctifs de sécurité
+Exec=nounoursos-maj
+Icon=system-software-update
+Categories=System;Settings;Qt;
+Keywords=mise à jour;update;sécurité;version;

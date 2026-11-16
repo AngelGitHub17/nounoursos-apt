@@ -1,0 +1,13 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Authors": [ { "Name": "NounoursCorp" } ],
+        "Description": "Disposition KDE classique : une barre en bas",
+        "Id": "org.nounoursos.classique",
+        "License": "GPL-2.0-or-later",
+        "Name": "NounoursOS Classique",
+        "Version": "1.0",
+        "Website": "https://nounourscorp.fr"
+    },
+    "X-Plasma-APIVersion": "2"
+}

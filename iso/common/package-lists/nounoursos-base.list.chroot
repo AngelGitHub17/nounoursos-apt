@@ -1,0 +1,27 @@
+# --- Paquets communs à toutes les éditions NounoursOS ---
+
+# Langue et clavier
+locales
+keyboard-configuration
+console-setup
+manpages-fr
+
+# Outils de base
+sudo
+curl
+wget
+ca-certificates
+git
+htop
+nano
+bash-completion
+gtk-update-icon-cache
+
+# Firmwares et microcodes (matériel réel : wifi, GPU, CPU)
+firmware-linux
+firmware-iwlwifi
+firmware-realtek
+firmware-atheros
+firmware-sof-signed
+intel-microcode
+amd64-microcode

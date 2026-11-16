@@ -1,0 +1,48 @@
+---
+# NounoursOS — branding de l'installateur Calamares
+componentName:  nounoursos
+
+welcomeStyleCalamares:   false
+welcomeExpandingLogo:    true
+windowExpanding:         fullscreen
+windowSize:              900px,620px
+windowPlacement:         center
+sidebar:                 widget
+navigation:              widget
+
+strings:
+    productName:         "NounoursOS"
+    shortProductName:    "NounoursOS"
+    version:             "1.0"
+    shortVersion:        "1.0"
+    versionedName:       "NounoursOS 1.0 « Guimauve »"
+    shortVersionedName:  "NounoursOS 1.0"
+    # IMPORTANT : on garde "debian" ici. Le GRUB signé (Secure Boot) de Debian
+    # cherche sa configuration dans /EFI/debian/. Un autre nom casserait le
+    # démarrage UEFI avec Secure Boot. Le nom affiché dans GRUB, lui, vient de
+    # GRUB_DISTRIBUTOR (=NounoursOS).
+    bootloaderEntryName: "debian"
+    productUrl:          "https://nounourscorp.fr/"
+    supportUrl:          "https://nounourscorp.fr/"
+    knownIssuesUrl:      "https://nounourscorp.fr/"
+    releaseNotesUrl:     "https://nounourscorp.fr/"
+    donateUrl:           ""
+
+images:
+    productLogo:         "logo.png"
+    productIcon:         "icon.png"
+    productWelcome:      "welcome.png"
+
+slideshow:               "show.qml"
+slideshowAPI:            2
+
+style:
+    # Anciens noms (Calamares 3.2) et nouveaux (3.3) : les deux sont acceptés
+    SidebarBackground:        "#1F1A2E"
+    SidebarText:              "#FFFFFF"
+    SidebarTextCurrent:       "#1F1A2E"
+    SidebarBackgroundCurrent: "#F3B562"
+    sidebarBackground:        "#1F1A2E"
+    sidebarText:              "#FFFFFF"
+    sidebarTextCurrent:       "#1F1A2E"
+    sidebarBackgroundCurrent: "#F3B562"

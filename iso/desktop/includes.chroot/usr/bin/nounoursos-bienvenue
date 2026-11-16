@@ -1,0 +1,11 @@
+#!/usr/bin/python3
+# Bienvenue dans NounoursOS : écran Essayer/Installer en live,
+# assistant de configuration au premier démarrage du système installé.
+#   --force     relancer l'assistant même s'il a déjà été fait
+#   --windowed  en fenêtre (tests)
+import os, sys, time
+sys.path.insert(0, os.environ.get("NOUNOURSOS_PY", "/usr/lib/nounoursos/python"))
+if "--now" not in sys.argv:
+    time.sleep(3)          # laisser Plasma finir de démarrer
+from nounoursui.bienvenue import main
+sys.exit(main())
