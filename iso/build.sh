@@ -77,6 +77,7 @@ COMMON_OPTS=(
   --firmware-binary true
   --apt-recommends true
   --binary-images iso-hybrid
+  --chroot-squashfs-compression-type xz
   --memtest none
   --iso-application "$PRETTY"
   --iso-publisher   "NounoursCorp - https://nounourscorp.fr"

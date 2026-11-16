@@ -62,6 +62,20 @@ nano nouveautes/1.1.md
 git commit -am "NounoursOS 1.1" && git push
 ```
 
+## Construire les ISO sur GitHub
+
+Onglet **Actions → Construire les ISO NounoursOS → Run workflow** (édition, et case
+« Publier une Release » si tu veux une page de téléchargement publique).
+Compter 40 à 90 min. Les ISO sont dans le run (section *Artifacts*), et dans
+**Releases** si publiées. Pousser un tag publie automatiquement :
+
+```bash
+git tag v1.0 && git push origin v1.0
+```
+
+GitHub limite chaque fichier de Release à 2 Gio : si l'ISO est plus grosse, elle est
+découpée en `.part0`, `.part1`… (la page de la Release explique comment les recoller).
+
 ## Tester en local
 
 ```bash
