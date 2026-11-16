@@ -66,6 +66,7 @@ log "Configuration de $PRETTY $VERSION ($EDITION)"
 
 COMMON_OPTS=(
   --mode debian
+  --debootstrap-options "--include=ca-certificates"
   --distribution "$DEBIAN_BASE"
   --architectures amd64
   --archive-areas "main contrib non-free non-free-firmware"
