@@ -140,6 +140,7 @@ jobs:
           fi
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" sortie/* --clobber
+            gh release edit "$TAG" --notes-file notes.md
           else
             gh release create "$TAG" sortie/* --title "NounoursOS ${VERSION} « ${CODENAME} »" --notes-file notes.md
           fi
