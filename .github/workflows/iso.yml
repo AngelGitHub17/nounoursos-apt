@@ -124,14 +124,20 @@ jobs:
             if ls sortie/*.part* >/dev/null 2>&1; then
               echo
               echo "### ⚠️ ISO en plusieurs morceaux"
-              echo "GitHub limite chaque fichier à 2 Gio : télécharge **tous** les \`.part\` puis recolle-les :"
+              echo "GitHub limite chaque fichier à 2 Gio. Télécharge **tous** les \`.part\`, le \`.sha256\` et l'outil de fusion dans le même dossier :"
               echo
-              echo "- Linux / macOS : \`cat NounoursOS-desktop-${VERSION}-amd64.iso.part* > NounoursOS-desktop-${VERSION}-amd64.iso\`"
-              echo "- Windows (cmd) : \`copy /b NounoursOS-desktop-${VERSION}-amd64.iso.part0 + NounoursOS-desktop-${VERSION}-amd64.iso.part1 NounoursOS-desktop-${VERSION}-amd64.iso\`"
+              echo "- **Windows** : double-clic sur \`fusionner-iso.bat\`"
+              echo "- **macOS / Linux** : dans un Terminal, \`sh fusionner-iso.sh\`"
+              echo
+              echo "L'outil recolle les morceaux et vérifie que l'ISO est intacte."
             fi
             echo
             echo "Empreintes SHA-256 : fichiers \`.sha256\`."
           } > notes.md
+          # Outils de fusion joints à la Release si une ISO est en morceaux
+          if ls sortie/*.part* >/dev/null 2>&1; then
+            cp iso/outils/fusionner-iso.bat iso/outils/fusionner-iso.sh sortie/
+          fi
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" sortie/* --clobber
           else
