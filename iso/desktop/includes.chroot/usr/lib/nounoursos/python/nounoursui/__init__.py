@@ -68,8 +68,35 @@ def colors():
     return DARK if is_dark() else LIGHT
 
 
-def stylesheet(c=None):
-    c = c or colors()
+def stylesheet(c=None, scoped=False):
+    qss = _stylesheet(c or colors())
+    return _scope(qss) if scoped else qss
+
+
+# Conteneurs NounoursOS : le style ne s'applique qu'à l'intérieur (pas aux modules KDE)
+_SCOPES = ("#Sidebar", "#NPage", "#Card")
+_KEEP = ("QMainWindow", "QDialog", "#Page", "#Sidebar", "#Card", "QToolTip", "QScrollArea")
+
+
+def _scope(qss):
+    out = []
+    for block in qss.split("}"):
+        if "{" not in block:
+            continue
+        sel, body = block.split("{", 1)
+        new = []
+        for one in (x.strip() for x in sel.split(",")):
+            if not one:
+                continue
+            if one.startswith(_KEEP):
+                new.append(one)
+            else:
+                new.extend(f"{scope} {one}" for scope in _SCOPES)
+        out.append(", ".join(new) + " {" + body + "}")
+    return "\n".join(out)
+
+
+def _stylesheet(c):
     return f"""
     * {{ font-family: "Noto Sans", "DejaVu Sans", sans-serif; color: {c['text']}; }}
     QMainWindow, QDialog, #Page {{ background: {c['bg']}; }}

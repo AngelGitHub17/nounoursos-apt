@@ -139,15 +139,25 @@ take "$P" "$C" "usr/share/icons/hicolor/*/apps/nounoursos.*"
 take "$P" "$C" "usr/share/nounoursos/logo*"
 take "$P" "$C" "usr/share/nounoursos/grub-background.png"
 chmod 755 "$P"/usr/bin/* "$P"/usr/libexec/nounoursos/*
+# Pont Paramètres <-> modules KDE (compilé par la CI dans Debian 13) : réglages intégrés
+DESK_ARCH=all
+DESK_DEPS_EXTRA=""
+if [ -f "$ROOT/dist-pont/libnounoursos-kcm.so" ]; then
+  install -D -m644 "$ROOT/dist-pont/libnounoursos-kcm.so" "$P/usr/lib/nounoursos/libnounoursos-kcm.so"
+  DESK_ARCH=amd64
+  DESK_DEPS_EXTRA=", libkf6kcmutils6, libkf6coreaddons6, libqt6widgets6"
+else
+  echo "   (pont KCM absent : les réglages KDE s'ouvriront dans une fenêtre à part)"
+fi
 cat > "$P/DEBIAN/control" <<EOF
 Package: nounoursos-desktop
 Version: ${DESKTOP_VERSION}
-Architecture: all
+Architecture: ${DESK_ARCH}
 Maintainer: ${MAINTAINER}
 Installed-Size: @SIZE@
 Section: x11
 Priority: optional
-Depends: nounoursos-release, python3, python3-pyqt6, packagekit, packagekit-tools, kdialog, plasma-workspace
+Depends: nounoursos-release, python3, python3-pyqt6, packagekit, packagekit-tools, kdialog, plasma-workspace${DESK_DEPS_EXTRA}
 Recommends: unattended-upgrades, pciutils, xdg-user-dirs, kde-cli-tools,
  winboat, docker.io, docker-compose, freerdp3-x11, nounours-launcher, nounours-browser,
  flatpak, plasma-discover-backend-flatpak

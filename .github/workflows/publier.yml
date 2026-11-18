@@ -9,6 +9,7 @@ on:
       - "iso/**"
       - "nouveautes/**"
       - "scripts/**"
+      - "src/**"
       - "depot.conf"
       - ".github/workflows/publier.yml"
   workflow_dispatch:
@@ -51,6 +52,20 @@ jobs:
 
       - name: Outils
         run: sudo apt-get update -q && sudo apt-get install -y -q apt-utils xz-utils
+
+      - name: Compiler le pont Paramètres ↔ modules KDE (Debian 13)
+        run: |
+          mkdir -p dist-pont
+          docker run --rm -v "$PWD:/src" -w /src debian:trixie bash -c "
+            set -e
+            apt-get update -q
+            DEBIAN_FRONTEND=noninteractive apt-get install -y -q g++ cmake qt6-base-dev \
+              libkf6kcmutils-dev libkf6coreaddons-dev >/dev/null
+            cmake -S src/kcm-pont -B /tmp/b -DCMAKE_BUILD_TYPE=Release
+            cmake --build /tmp/b
+            install -m644 /tmp/b/libnounoursos-kcm.so dist-pont/
+          "
+          ls -l dist-pont
 
       - name: Construire les paquets
         env:

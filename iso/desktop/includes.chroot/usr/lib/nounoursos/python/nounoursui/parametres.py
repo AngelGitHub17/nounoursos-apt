@@ -1,9 +1,10 @@
-"""Paramètres NounoursOS — réglages simplifiés, façon macOS.
+"""Paramètres NounoursOS — TOUS les réglages au même endroit, façon macOS.
 
-Les réglages les plus utilisés sont gérés directement ici (Wi-Fi, Bluetooth,
-Son, Apparence, Fond d'écran, Bureau et Dock, Mise à jour, À propos).
-Les autres ouvrent seulement le module KDE concerné (kcmshell6), sans la
-grosse fenêtre « Configuration du système ».
+- Pages NounoursOS : Wi-Fi, Bluetooth, Son, Apparence, Fond d'écran, Bureau et
+  Dock, Mise à jour, À propos, Applications Windows.
+- Tous les autres réglages sont les modules KDE eux-mêmes, affichés DANS la
+  fenêtre (via libnounoursos-kcm.so), avec Appliquer / Rétablir / Par défaut.
+- « Tous les réglages » liste chaque module installé : rien n'oblige à sortir.
 """
 import glob
 import os
@@ -12,67 +13,95 @@ import shutil
 import socket
 import sys
 
-from PyQt6.QtCore import Qt, QSize, QRectF, QTimer
+from PyQt6.QtCore import Qt, QSize, QRectF, QTimer, QFileSystemWatcher
 from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor, QFont
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
                              QListWidget, QListWidgetItem, QStackedWidget, QLineEdit, QLabel,
                              QScrollArea, QSlider, QGridLayout, QButtonGroup, QFrame,
-                             QStyledItemDelegate, QStyle)
+                             QStyledItemDelegate, QStyle, QMessageBox)
 
 from . import (label, button, Card, SettingRow, Toggle, ChoiceCard, Swatch, tile_icon,
                logo_pixmap, colors, stylesheet, run, spawn, has, open_kcm, root_helper,
                user_info, os_release, read_conf, write_conf, apply_color_scheme, apply_accent,
                plasma_script, is_dark, ACCENTS, HONEY, LNF, WALLPAPERS, DEMO, CONFIG_DIR)
 from . import updates as U
+from . import kcm as K
+from .maj import CheckThread
 
 BLUE, RED, ORANGE, GREEN, PURPLE, GREY, PINK, TEAL = (
     "#3D7EDB", "#E5484D", "#E8833A", "#3FA36B", "#7E57C2", "#7C7586", "#D9568C", "#2BA3A3")
 
-# clé, libellé, icône, couleur, lettre de secours, module KDE (None = page native),
-# description, mots-clés pour la recherche
+# clé, libellé, icônes (thème, candidats séparés par |), couleur et lettre de secours,
+# module KDE (None = page NounoursOS), description, mots-clés pour la recherche
 SECTIONS = [
-    [("wifi", "Wi-Fi", "network-wireless", BLUE, "W", None, "", "internet sans fil reseau"),
-     ("bluetooth", "Bluetooth", "preferences-system-bluetooth", BLUE, "B", None, "", "casque souris"),
-     ("reseau", "Réseau", "network-wired", BLUE, "R", "kcm_networkmanagement",
-      "Connexions filaires, VPN, partage de connexion et réglages avancés du réseau.", "vpn ethernet proxy")],
-    [("notifications", "Notifications", "preferences-desktop-notification", RED, "N", "kcm_notifications",
-      "Choisissez quelles applications peuvent vous envoyer des notifications, et le mode Ne pas déranger.",
-      "ne pas deranger alertes"),
-     ("son", "Son", "audio-volume-high", RED, "S", None, "", "volume haut-parleur micro audio")],
+    [("wifi", "Wi-Fi", "network-wireless-connected-100|network-wireless|preferences-system-network", BLUE, "W", None, "",
+      "internet sans fil reseau"),
+     ("bluetooth", "Bluetooth", "preferences-system-bluetooth|bluetooth|preferences-system-network", BLUE, "B", None, "", "casque souris"),
+     ("reseau", "Réseau", "preferences-system-network", BLUE, "R", "kcm_networkmanagement",
+      "", "vpn ethernet proxy filaire")],
+    [("notifications", "Notifications", "preferences-desktop-notification-bell", RED, "N",
+      "kcm_notifications", "", "ne pas deranger alertes"),
+     ("son", "Son", "preferences-desktop-sound", RED, "S", None, "", "volume haut-parleur micro audio")],
     [("maj", "Mise à jour", "system-software-update", GREY, "M", None, "", "mises a jour version securite"),
-     ("apropos", "À propos", "help-about", GREY, "i", None, "", "version systeme info materiel"),
-     ("apparence", "Apparence", "preferences-desktop-theme", "#3B2A4F", "A", None, "",
+     ("apropos", "À propos", "hwinfo|computer|help-about", GREY, "i", None, "",
+      "version systeme info materiel"),
+     ("windows", "Applications Windows", "winboat|computer", "#2F6FDB", "⊞", None, "",
+      "winboat windows exe logiciels office photoshop")],
+    [("apparence", "Apparence", "preferences-desktop-theme-global", "#3B2A4F", "A", None, "",
       "theme sombre clair couleur accent"),
      ("bureau", "Bureau et Dock", "preferences-desktop", "#3B2A4F", "D", None, "",
       "dock barre panneau disposition mac classique"),
      ("fond", "Fond d'écran", "preferences-desktop-wallpaper", TEAL, "F", None, "", "image wallpaper"),
-     ("windows", "Applications Windows", "winboat", "#2F6FDB", "⊞", None, "",
-      "winboat windows exe logiciels office photoshop"),
-     ("ecrans", "Écrans", "preferences-desktop-display", BLUE, "É", "kcm_kscreen",
-      "Résolution, mise à l'échelle, disposition de plusieurs écrans et éclairage nocturne.",
-      "resolution moniteur luminosite nuit")],
-    [("verrouillage", "Écran de verrouillage", "system-lock-screen", GREY, "V", "kcm_screenlocker",
-      "Verrouillage automatique, délai avant mot de passe et apparence de l'écran de verrouillage.",
+     ("ecrans", "Écrans", "preferences-desktop-display-randr|preferences-desktop-display", BLUE, "É",
+      "kcm_kscreen", "", "resolution moniteur luminosite nuit echelle"),
+     ("polices", "Polices", "preferences-desktop-font", GREY, "P", "kcm_fonts", "", "texte taille"),
+     ("couleurs", "Couleurs", "preferences-desktop-color", GREY, "C", "kcm_colors", "", "schema"),
+     ("icones", "Icônes", "preferences-desktop-icons", GREY, "I", "kcm_icons", "", "theme icones"),
+     ("pointeur", "Pointeur", "preferences-desktop-cursors", GREY, "P", "kcm_cursortheme", "",
+      "curseur souris"),
+     ("effets", "Effets", "preferences-desktop-effects", PURPLE, "E", "kcm_kwin_effects", "",
+      "animation transparence flou"),
+     ("splash", "Écran de chargement", "preferences-system-splash", PURPLE, "C", "kcm_splashscreen", "",
+      "demarrage session")],
+    [("fenetres", "Fenêtres", "preferences-system-windows-behavior|preferences-system-windows", GREY, "F",
+      "kcm_kwinoptions", "", "focus clic barre titre"),
+     ("bureaux", "Bureaux virtuels", "preferences-desktop-virtual", GREY, "B", "kcm_kwin_virtualdesktops",
+      "", "espaces"),
+     ("raccourcis", "Raccourcis clavier", "preferences-desktop-keyboard-shortcut", GREY, "R", "kcm_keys",
+      "", "touches combinaison"),
+     ("recherche", "Recherche", "system-search", GREY, "R", "kcm_plasmasearch", "", "krunner spotlight")],
+    [("verrouillage", "Écran de verrouillage", "system-lock-screen", GREY, "V", "kcm_screenlocker", "",
       "mot de passe veille"),
-     ("utilisateurs", "Utilisateurs", "system-users", GREY, "U", "kcm_users",
-      "Ajoutez ou modifiez des comptes, changez votre photo et votre mot de passe.", "compte mot de passe photo"),
-     ("energie", "Énergie", "preferences-system-power-management", GREEN, "É", "kcm_powerdevilprofilesconfig",
-      "Mise en veille, extinction de l'écran et comportement sur batterie.", "batterie veille")],
-    [("langue", "Langue et région", "preferences-desktop-locale", BLUE, "L", "kcm_regionandlang",
-      "Langue du système, formats de date, de nombres et de monnaie.", "francais format"),
-     ("date", "Date et heure", "preferences-system-time", BLUE, "H", "kcm_clock",
-      "Réglage de l'heure, fuseau horaire et synchronisation automatique.", "fuseau horloge"),
-     ("clavier", "Clavier", "input-keyboard", GREY, "C", "kcm_keyboard",
-      "Disposition du clavier (AZERTY…), répétition des touches et raccourcis.", "azerty raccourcis"),
-     ("souris", "Souris et pavé tactile", "input-mouse", GREY, "S", "kcm_mouse",
-      "Vitesse du pointeur, défilement et gestes du pavé tactile.", "touchpad trackpad pointeur"),
-     ("imprimantes", "Imprimantes", "printer", GREY, "I", "kcm_printer_manager",
-      "Ajouter une imprimante et gérer les impressions en cours.", "imprimer scanner"),
+     ("utilisateurs", "Utilisateurs", "preferences-system-users|system-users", GREY, "U", "kcm_users", "",
+      "compte mot de passe photo"),
+     ("connexion", "Écran de connexion", "preferences-system-login", GREY, "C", "kcm_sddm", "",
+      "sddm ouverture session"),
+     ("energie", "Énergie", "preferences-system-power-management", GREEN, "É",
+      "kcm_powerdevilprofilesconfig", "", "batterie veille"),
+     ("accessibilite", "Accessibilité", "preferences-desktop-accessibility", BLUE, "A", "kcm_access", "",
+      "malvoyant loupe")],
+    [("langue", "Langue et région", "preferences-desktop-locale", BLUE, "L", "kcm_regionandlang", "",
+      "francais format"),
+     ("date", "Date et heure", "preferences-system-time", BLUE, "H", "kcm_clock", "", "fuseau horloge"),
+     ("clavier", "Clavier", "preferences-desktop-keyboard|input-keyboard", GREY, "C", "kcm_keyboard", "",
+      "azerty disposition"),
+     ("souris", "Souris", "preferences-desktop-mouse|input-mouse", GREY, "S", "kcm_mouse", "",
+      "pointeur vitesse"),
+     ("pave", "Pavé tactile", "preferences-desktop-touchpad|input-touchpad", GREY, "P", "kcm_touchpad", "",
+      "touchpad trackpad gestes"),
+     ("imprimantes", "Imprimantes", "printer", GREY, "I", "kcm_printer_manager", "", "imprimer scanner"),
      ("applis", "Applications par défaut", "preferences-desktop-default-applications", GREY, "A",
-      "kcm_componentchooser", "Navigateur, messagerie, lecteur de musique… utilisés par défaut.",
-      "navigateur defaut"),
-     ("demarrage", "Ouverture au démarrage", "system-run", GREY, "O", "kcm_autostart",
-      "Applications lancées automatiquement à l'ouverture de session.", "autostart")],
+      "kcm_componentchooser", "", "navigateur defaut"),
+     ("fichiers", "Associations de fichiers", "preferences-desktop-filetype-association", GREY, "F",
+      "kcm_filetypes", "", "ouvrir avec type"),
+     ("demarrage", "Ouverture au démarrage", "preferences-system-session-services|system-run", GREY, "O",
+      "kcm_autostart", "", "autostart"),
+     ("session", "Session", "preferences-system-session-services", GREY, "S", "kcm_smserver", "",
+      "eteindre redemarrer"),
+     ("disques", "Disques et clés USB", "preferences-system-disks|drive-harddisk", GREY, "D",
+      "kcm_device_automounter", "", "montage usb")],
+    [("tous", "Tous les réglages", "applications-system|preferences-system", GREY, "…", None, "",
+      "avance avances kde configuration")],
 ]
 ITEMS = {s[0]: s for group in SECTIONS for s in group}
 
@@ -101,9 +130,18 @@ class SidebarDelegate(QStyledItemDelegate):
             p.restore()
 
 
+def real_icon(names, size, color=GREY, glyph="•"):
+    """Vraie icône colorée du thème (premier nom trouvé), sinon pastille de secours."""
+    for n in (names or "").split("|"):
+        if n and QIcon.hasThemeIcon(n):
+            return QIcon.fromTheme(n).pixmap(QSize(size, size))
+    return tile_icon(None, color, size, glyph)
+
+
 def page(title, subtitle=None):
     """Page de réglages défilante, contenu centré (largeur max 660 px)."""
     scroll = QScrollArea()
+    scroll.setObjectName("NPage")
     scroll.setWidgetResizable(True)
     inner = QWidget()
     outer = QHBoxLayout(inner)
@@ -157,6 +195,89 @@ def lnf_preview(lnf_id):
 
 
 # ==========================================================================
+CATEGORIES = {
+    "appearance": "Apparence", "appearanceandstyle": "Apparence", "colors": "Apparence",
+    "fonts": "Apparence", "icons": "Apparence", "themes": "Apparence", "decorations": "Apparence",
+    "workspace": "Espace de travail", "workspacetheme": "Espace de travail", "desktopbehavior": "Espace de travail",
+    "windowmanagement": "Fenêtres", "shortcuts": "Raccourcis", "search": "Recherche",
+    "personalization": "Personnalisation", "applications": "Applications",
+    "applications-defaults": "Applications", "notifications": "Notifications",
+    "regionalsettings": "Langue et région", "accessibility": "Accessibilité",
+    "network": "Réseau", "connectivity": "Réseau", "networksettings": "Réseau", "bluetooth": "Réseau",
+    "hardware": "Matériel", "input-devices": "Matériel", "display": "Matériel",
+    "multimedia": "Matériel", "audio": "Matériel", "power-management": "Énergie",
+    "removable_devices": "Matériel", "printers": "Matériel",
+    "system-administration": "Système", "session": "Système", "security-privacy": "Sécurité et confidentialité",
+    "infos": "Informations",
+}
+
+
+class KcmPage(QWidget):
+    """Un module de réglage KDE affiché dans Paramètres, avec ses boutons."""
+
+    def __init__(self, kcm_id, title, icon_pm, back=None):
+        super().__init__()
+        self.title = title
+        self.kcm_id = kcm_id
+        v = QVBoxLayout(self)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(0)
+
+        head = QWidget()
+        head.setObjectName("NPage")
+        hl = QHBoxLayout(head)
+        hl.setContentsMargins(24, 16, 24, 10)
+        if back:
+            hl.addWidget(button("‹ Retour", "link", back))
+        ic = QLabel()
+        ic.setPixmap(icon_pm)
+        hl.addWidget(ic)
+        hl.addWidget(label(title, "h1"))
+        hl.addStretch()
+        v.addWidget(head)
+
+        self.module = K.Module(kcm_id)
+        if self.module.ok:
+            body = QWidget()
+            bl = QVBoxLayout(body)
+            bl.setContentsMargins(12, 0, 12, 0)
+            bl.addWidget(self.module.widget)
+            v.addWidget(body, 1)
+
+            bar = QWidget()
+            bar.setObjectName("NPage")
+            b = QHBoxLayout(bar)
+            b.setContentsMargins(24, 10, 24, 14)
+            self.b_def = button("Par défaut", None, self.module.par_defaut)
+            self.b_reset = button("Rétablir", None, self.module.recharger)
+            self.b_apply = button("Appliquer", "primary", self.module.enregistrer)
+            b.addWidget(self.b_def)
+            b.addStretch()
+            b.addWidget(self.b_reset)
+            b.addWidget(self.b_apply)
+            v.addWidget(bar)
+            self._timer = QTimer(self)
+            self._timer.timeout.connect(self._update_buttons)
+            self._timer.start(400)
+            self._update_buttons()
+        else:
+            # Pont indisponible ou module introuvable : ouverture dans une fenêtre à part
+            box = QWidget()
+            box.setObjectName("NPage")
+            bl = QVBoxLayout(box)
+            bl.setContentsMargins(24, 10, 24, 24)
+            bl.addWidget(label("Ce réglage s'ouvre dans sa propre fenêtre.", "sub"))
+            bl.addWidget(button(f"Ouvrir « {title} »", "primary", lambda: open_kcm(kcm_id)),
+                         0, Qt.AlignmentFlag.AlignLeft)
+            bl.addStretch()
+            v.addWidget(box, 1)
+
+    def _update_buttons(self):
+        dirty = self.module.a_enregistrer()
+        self.b_apply.setEnabled(dirty)
+        self.b_reset.setEnabled(dirty)
+
+
 class Settings(QMainWindow):
     def __init__(self, start=None):
         super().__init__()
@@ -189,19 +310,25 @@ class Settings(QMainWindow):
         self.list.setItemDelegate(SidebarDelegate(self.list))
         self.list.currentItemChanged.connect(self.on_select)
         sv.addWidget(self.list, 1)
-        adv = button("Réglages avancés…", "link", lambda: spawn(["systemsettings"]))
-        sv.addWidget(adv, 0, Qt.AlignmentFlag.AlignLeft)
+
         h.addWidget(side)
 
         self.stack = QStackedWidget()
         h.addWidget(self.stack, 1)
         self.setCentralWidget(central)
 
+        self.inline = None          # page de module ouverte depuis une autre page
         self.fill_list()
         self.select(start or "maj" if U.load_state().count else (start or "wifi"))
-        # Rafraîchir la pastille de mise à jour de temps en temps
+        # Mises à jour : la page et la pastille suivent le service en direct
+        os.makedirs(U.CACHE_DIR, exist_ok=True)
+        self.watch = QFileSystemWatcher([U.CACHE_DIR], self)
+        if os.path.exists(U.STATE_FILE):
+            self.watch.addPath(U.STATE_FILE)
+        self.watch.directoryChanged.connect(self.on_state_changed)
+        self.watch.fileChanged.connect(self.on_state_changed)
         self.badge_timer = QTimer(self)
-        self.badge_timer.timeout.connect(self.refresh_badge)
+        self.badge_timer.timeout.connect(self.on_state_changed)
         self.badge_timer.start(60_000)
 
     # --- Barre latérale ------------------------------------------------------
@@ -227,26 +354,39 @@ class Settings(QMainWindow):
         v.addWidget(n)
         v.addWidget(label("Compte NounoursOS", "sub"))
         lay.addLayout(v, 1)
-        w.mouseReleaseEvent = lambda e: open_kcm("kcm_users")
+        w.mouseReleaseEvent = lambda e: self.select("utilisateurs")
         return w
 
     def fill_list(self):
         self.list.clear()
         count = U.load_state().count
-        for gi, group in enumerate(SECTIONS):
-            if gi:
+        first = True
+        for group in SECTIONS:
+            # module KDE non installé : pas d'entrée morte (ni de séparateur vide)
+            group = [e for e in group if not e[5] or K.existe(e[5])]
+            if not group:
+                continue
+            if not first:
                 sep = QListWidgetItem()
                 sep.setFlags(Qt.ItemFlag.NoItemFlags)
                 sep.setSizeHint(QSize(10, 10))
                 sep.setData(Qt.ItemDataRole.UserRole, None)
                 self.list.addItem(sep)
+            first = False
             for key, title, icon, color, glyph, kcm, desc, kw in group:
-                it = QListWidgetItem(QIcon(tile_icon(icon, color, 24, glyph)), title)
+                it = QListWidgetItem(QIcon(real_icon(icon, 24, color, glyph)), title)
                 it.setData(Qt.ItemDataRole.UserRole, key)
                 it.setSizeHint(QSize(200, 34))
                 if key == "maj" and count:
                     it.setData(Qt.ItemDataRole.UserRole + 1, count)
                 self.list.addItem(it)
+
+    def on_state_changed(self, *_):
+        if os.path.exists(U.STATE_FILE) and U.STATE_FILE not in self.watch.files():
+            self.watch.addPath(U.STATE_FILE)
+        self.refresh_badge()
+        if "maj" in self.pages:
+            self._maj_refresh()
 
     def refresh_badge(self):
         count = U.load_state().count
@@ -266,7 +406,9 @@ class Settings(QMainWindow):
                 continue
             entry = ITEMS[key]
             hay = _strip_accents((entry[1] + " " + entry[7] + " " + entry[6]).lower())
-            it.setHidden(bool(t) and t_norm not in hay)
+            it.setHidden(bool(t) and t_norm not in hay and key != "tous")
+        if hasattr(self, "tous_filtre"):
+            self.tous_filtre.setText(text)
 
     def select(self, key):
         for i in range(self.list.count()):
@@ -274,12 +416,34 @@ class Settings(QMainWindow):
                 self.list.setCurrentRow(i)
                 return
 
+    def confirm_leave(self):
+        """True si on peut quitter la page actuelle (changements appliqués ou abandonnés)."""
+        cur = self.stack.currentWidget()
+        if isinstance(cur, KcmPage) and cur.module and cur.module.a_enregistrer():
+            r = QMessageBox.question(self, "Paramètres",
+                                     f"Appliquer les changements de « {cur.title} » ?",
+                                     QMessageBox.StandardButton.Apply | QMessageBox.StandardButton.Discard
+                                     | QMessageBox.StandardButton.Cancel)
+            if r == QMessageBox.StandardButton.Cancel:
+                return False
+            if r == QMessageBox.StandardButton.Apply:
+                cur.module.enregistrer()
+            else:
+                cur.module.recharger()
+        return True
+
     def on_select(self, cur, _prev):
         if not cur:
             return
         key = cur.data(Qt.ItemDataRole.UserRole)
         if key is None:
             return
+        if not self.confirm_leave():
+            self.list.blockSignals(True)
+            self.list.setCurrentItem(_prev)
+            self.list.blockSignals(False)
+            return
+        self.close_inline()
         if key not in self.pages:
             self.pages[key] = self.build(key)
             self.stack.addWidget(self.pages[key])
@@ -294,24 +458,73 @@ class Settings(QMainWindow):
 
     def page_kcm(self, key):
         _, title, icon, color, glyph, kcm, desc, _kw = ITEMS[key]
-        pg = page(title)
-        card = Card(margins=(20, 20, 20, 20))
-        row = QHBoxLayout()
-        ic = QLabel()
-        ic.setPixmap(tile_icon(icon, color, 56, glyph))
-        row.addWidget(ic, 0, Qt.AlignmentFlag.AlignTop)
-        v = QVBoxLayout()
-        v.addWidget(label(desc, wrap=True))
-        b = button(f"Ouvrir les réglages « {title} »", "primary", lambda: open_kcm(kcm))
-        v.addWidget(b, 0, Qt.AlignmentFlag.AlignLeft)
-        row.addLayout(v, 1)
-        w = QWidget()
-        w.setLayout(row)
-        card.add(w)
-        pg.body.addWidget(card)
-        if key == "souris":
-            pg.body.addWidget(button("Réglages du pavé tactile…", None, lambda: open_kcm("kcm_touchpad")),
+        return KcmPage(kcm, title, real_icon(icon, 32, color, glyph))
+
+    def open_inline(self, kcm, title, icon_names="preferences-system"):
+        """Ouvre un module KDE dans la fenêtre, avec « ‹ Retour » vers la page actuelle."""
+        if not self.confirm_leave():
+            return
+        back_to = self.stack.currentWidget()
+        self.close_inline()
+        pg = KcmPage(kcm, title, real_icon(icon_names, 32), back=lambda: self.back_from_inline(back_to))
+        self.inline = pg
+        self.stack.addWidget(pg)
+        self.stack.setCurrentWidget(pg)
+
+    def back_from_inline(self, target):
+        if not self.confirm_leave():
+            return
+        self.stack.setCurrentWidget(target)
+        self.close_inline()
+
+    def close_inline(self):
+        if self.inline is not None:
+            self.stack.removeWidget(self.inline)
+            self.inline.deleteLater()
+            self.inline = None
+
+    # Tous les réglages ----------------------------------------------------------
+    def page_tous(self):
+        pg = page("Tous les réglages", "Chaque réglage du système, sans quitter Paramètres.")
+        self.tous_filtre = QLineEdit()
+        self.tous_filtre.setPlaceholderText("Rechercher un réglage")
+        self.tous_filtre.setClearButtonEnabled(True)
+        pg.body.addWidget(self.tous_filtre)
+        mods = [m for m in K.liste() if not m.get("cache")]
+        if not mods:
+            pg.body.addWidget(label("La liste complète n'est pas disponible sur ce système.", "sub"))
+            pg.body.addWidget(button("Ouvrir la configuration KDE", None, lambda: spawn(["systemsettings"])),
                               0, Qt.AlignmentFlag.AlignLeft)
+            return finish(pg)
+        groups = {}
+        for m in mods:
+            groups.setdefault(CATEGORIES.get(m.get("categorie") or "", "Autres réglages"), []).append(m)
+        self._tous_rows = []
+        for gname in sorted(groups, key=lambda g: (g == "Autres réglages", g == "Informations", g)):
+            sec = label(gname.upper(), "section")
+            pg.body.addWidget(sec)
+            card = Card()
+            for m in sorted(groups[gname], key=lambda m: m["nom"].lower()):
+                r = SettingRow(m["nom"], m.get("description") or None, None,
+                               real_icon(m.get("icone"), 28, GREY, m["nom"][:1]), chevron=True)
+                r.clicked.connect(lambda m=m: self.open_inline(m["id"], m["nom"], m.get("icone") or ""))
+                card.add(r)
+                self._tous_rows.append((r, _strip_accents((m["nom"] + " " + (m.get("description") or "")
+                                                            + " " + m["id"]).lower()), card, sec))
+            pg.body.addWidget(card)
+
+        def filtrer(text):
+            t = _strip_accents(text.strip().lower())
+            visible_cards = set()
+            for r, hay, card, sec in self._tous_rows:
+                show = not t or t in hay
+                r.setVisible(show)
+                if show:
+                    visible_cards.add(id(card))
+            for r, hay, card, sec in self._tous_rows:
+                card.setVisible(id(card) in visible_cards)
+                sec.setVisible(id(card) in visible_cards)
+        self.tous_filtre.textChanged.connect(filtrer)
         return finish(pg)
 
     # Wi-Fi ---------------------------------------------------------------------
@@ -336,13 +549,15 @@ class Settings(QMainWindow):
             bars = "▂▄▆█"[: max(1, min(4, int(signal) // 25 + 1))]
             r = SettingRow(ssid, ("🔒 Sécurisé · " if secure else "Ouvert · ") + f"signal {signal} %",
                            label(bars, "sub"), chevron=True)
-            r.clicked.connect(lambda: open_kcm("kcm_networkmanagement"))
+            r.clicked.connect(lambda: self.open_inline("kcm_networkmanagement", "Réseau", "preferences-system-network"))
             nets.add(r)
         pg.body.addWidget(nets)
         pg.body.addWidget(label("Pour vous connecter à un réseau protégé, cliquez dessus ou utilisez "
                                 "l'icône réseau dans la barre.", "sub", wrap=True))
         pg.body.addWidget(button("Réglages réseau avancés…", None,
-                                 lambda: open_kcm("kcm_networkmanagement")), 0, Qt.AlignmentFlag.AlignLeft)
+                                 lambda: self.open_inline("kcm_networkmanagement", "Réseau",
+                                                          "preferences-system-network")),
+                          0, Qt.AlignmentFlag.AlignLeft)
         return finish(pg)
 
     def _current_wifi(self):
@@ -385,8 +600,15 @@ class Settings(QMainWindow):
         for name, st in lst:
             devs.add(SettingRow(name, st, None))
         pg.body.addWidget(devs)
-        pg.body.addWidget(button("Ajouter un appareil…", "primary", lambda: spawn(["bluedevil-wizard"])),
-                          0, Qt.AlignmentFlag.AlignLeft)
+        rowb = QHBoxLayout()
+        rowb.addWidget(button("Ajouter un appareil…", "primary", lambda: spawn(["bluedevil-wizard"])))
+        rowb.addWidget(button("Réglages Bluetooth avancés…", None,
+                              lambda: self.open_inline("kcm_bluetooth", "Bluetooth",
+                                                       "preferences-system-bluetooth")))
+        rowb.addStretch()
+        wb = QWidget()
+        wb.setLayout(rowb)
+        pg.body.addWidget(wb)
         return finish(pg)
 
     # Son ------------------------------------------------------------------------
@@ -406,7 +628,9 @@ class Settings(QMainWindow):
         card.add(SettingRow("Sortie", self._sink_name(), None))
         pg.body.addWidget(card)
         pg.body.addWidget(button("Choisir la sortie et l'entrée (micro)…", None,
-                                 lambda: open_kcm("kcm_pulseaudio")), 0, Qt.AlignmentFlag.AlignLeft)
+                                 lambda: self.open_inline("kcm_pulseaudio", "Son : sorties et micros",
+                                                          "preferences-desktop-sound")),
+                          0, Qt.AlignmentFlag.AlignLeft)
         return finish(pg)
 
     def _volume(self):
@@ -460,7 +684,7 @@ class Settings(QMainWindow):
         more = Card()
         for t, k in (("Polices", "kcm_fonts"), ("Icônes", "kcm_icons"), ("Pointeur de la souris", "kcm_cursortheme")):
             r = SettingRow(t, None, chevron=True)
-            r.clicked.connect(lambda k=k: open_kcm(k))
+            r.clicked.connect(lambda k=k, t=t: self.open_inline(k, t))
             more.add(r)
         pg.body.addWidget(more)
         return finish(pg)
@@ -572,7 +796,7 @@ class Settings(QMainWindow):
         v.addWidget(self.maj_title)
         v.addWidget(self.maj_sub)
         btns = QHBoxLayout()
-        self.maj_btn = button("", "primary", lambda: spawn(["nounoursos-maj"]))
+        self.maj_btn = button("", "primary", self._maj_action)
         btns.addWidget(self.maj_btn)
         btns.addStretch()
         v.addLayout(btns)
@@ -600,13 +824,30 @@ class Settings(QMainWindow):
         pg.body.addWidget(opts)
         return finish(pg)
 
+    def _maj_action(self):
+        if U.load_state().count:
+            spawn(["nounoursos-maj"])
+            return
+        self.maj_title.setText("Recherche de mises à jour…")
+        self.maj_sub.setText("Connexion aux serveurs NounoursOS et Debian.")
+        self.maj_btn.setEnabled(False)
+        self._maj_th = CheckThread()
+        self._maj_th.done.connect(lambda _s: (self.maj_btn.setEnabled(True), self._maj_refresh(),
+                                              self.refresh_badge()))
+        self._maj_th.start()
+
     def _maj_refresh(self):
         s = U.load_state()
         rel = os_release()
-        if s.count:
-            self.maj_title.setText(s.headline() + (" est disponible" if s.new_release else ""))
-            self.maj_sub.setText(s.summary())
-            self.maj_btn.setText("Mettre à jour…")
+        if s.error and not s.count:
+            self.maj_title.setText("Impossible de vérifier les mises à jour")
+            self.maj_sub.setText(s.error)
+            self.maj_btn.setText("Réessayer")
+        elif s.count:
+            self.maj_title.setText(s.headline() + " est disponible")
+            self.maj_sub.setText(s.summary() + ("\nRecommandé : contient des correctifs de sécurité."
+                                                if s.security_count else ""))
+            self.maj_btn.setText("Mettre à jour maintenant…")
         else:
             self.maj_title.setText("NounoursOS est à jour")
             self.maj_sub.setText(f"NounoursOS {rel.get('VERSION_ID', '')} « {rel.get('NOUNOURSOS_CODENAME', '')} »")
@@ -708,12 +949,20 @@ class Settings(QMainWindow):
             info.add(SettingRow(k, None, label(v, "sub")))
         pg.body.addWidget(info)
         row = QHBoxLayout()
-        row.addWidget(button("Rapport système…", None, lambda: spawn(["kinfocenter"])))
+        infos = [m for m in K.liste() if m.get("categorie") == "infos"]
         row.addWidget(button("nounourscorp.fr", "link", lambda: spawn(["xdg-open", "https://nounourscorp.fr"])))
         row.addStretch()
         rw = QWidget()
         rw.setLayout(row)
         pg.body.addWidget(rw)
+        if infos:
+            pg.body.addWidget(label("INFORMATIONS DÉTAILLÉES", "section"))
+            ic = Card()
+            for m in sorted(infos, key=lambda m: m["nom"].lower()):
+                r = SettingRow(m["nom"], None, None, real_icon(m.get("icone"), 24, GREY, "i"), chevron=True)
+                r.clicked.connect(lambda m=m: self.open_inline(m["id"], m["nom"], m.get("icone") or ""))
+                ic.add(r)
+            pg.body.addWidget(ic)
         pg.body.addWidget(label("NounoursOS est basé sur Debian GNU/Linux. © NounoursCorp.", "sub",
                                 align=Qt.AlignmentFlag.AlignCenter))
         return finish(pg)
@@ -774,7 +1023,7 @@ def main(argv=None):
     app.setApplicationName("nounoursos-parametres")
     app.setApplicationDisplayName("Paramètres")
     app.setDesktopFileName("nounoursos-parametres")
-    app.setStyleSheet(stylesheet())
+    app.setStyleSheet(stylesheet(scoped=True))
     start = argv[0] if argv and argv[0] in ITEMS else None
     w = Settings(start)
     w.show()
