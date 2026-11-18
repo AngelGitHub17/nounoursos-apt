@@ -44,6 +44,7 @@ if command -v grub-mkfont >/dev/null && [ -f "$F/DejaVuSans.ttf" ]; then
   grub-mkfont -s 16 -n "DejaVu Sans" -o "$T/dejavu_bold_16.pf2" "$F/DejaVuSans-Bold.ttf" || true
   grub-mkfont -s 28 -n "DejaVu Sans" -o "$T/dejavu_bold_28.pf2" "$F/DejaVuSans-Bold.ttf" || true
 fi
+ls "$T"/*.pf2 2>/dev/null || echo "(polices GRUB non générées : police par défaut utilisée)"
 
 echo "[NounoursOS] Logithèque : Flathub disponible dans Discover"
 flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo || true

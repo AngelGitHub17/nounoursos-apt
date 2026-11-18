@@ -16,8 +16,7 @@ Légende : ✅ fait · 🔜 prochaine version · 💡 idée à creuser
 - Logithèque : Flatpak + Flathub dans Discover, sélection NounoursCorp dans l'assistant
 - Menu de démarrage (ISO et système installé) et écran de verrouillage NounoursOS
 - Thème de sons NounoursOS
-- ISO bureau allégée (firmwares non dupliqués)
-- *Reporté : curseur NounoursOS (à dessiner)*
+- *Reporté : curseur NounoursOS (à dessiner) ; ISO bureau sous 2 Go (2,8 Go avec WinBoat, Docker et les applis NounoursCorp : il faudrait retirer des firmwares ou des applis)*
 
 ## 1.2 🔜 — Confort façon macOS
 
