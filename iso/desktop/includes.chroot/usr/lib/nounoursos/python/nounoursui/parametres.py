@@ -46,6 +46,8 @@ SECTIONS = [
      ("bureau", "Bureau et Dock", "preferences-desktop", "#3B2A4F", "D", None, "",
       "dock barre panneau disposition mac classique"),
      ("fond", "Fond d'écran", "preferences-desktop-wallpaper", TEAL, "F", None, "", "image wallpaper"),
+     ("windows", "Applications Windows", "winboat", "#2F6FDB", "⊞", None, "",
+      "winboat windows exe logiciels office photoshop"),
      ("ecrans", "Écrans", "preferences-desktop-display", BLUE, "É", "kcm_kscreen",
       "Résolution, mise à l'échelle, disposition de plusieurs écrans et éclairage nocturne.",
       "resolution moniteur luminosite nuit")],
@@ -609,6 +611,81 @@ class Settings(QMainWindow):
             self.maj_title.setText("NounoursOS est à jour")
             self.maj_sub.setText(f"NounoursOS {rel.get('VERSION_ID', '')} « {rel.get('NOUNOURSOS_CODENAME', '')} »")
             self.maj_btn.setText("Rechercher des mises à jour")
+
+    # Applications Windows (WinBoat) ---------------------------------------------------
+    def page_windows(self):
+        pg = page("Applications Windows",
+                  "WinBoat fait tourner un vrai Windows en arrière-plan et affiche ses logiciels "
+                  "dans des fenêtres NounoursOS, comme des applications normales.")
+        checks = self._winboat_checks()
+        card = Card()
+        for title, ok, detail in checks:
+            mark = label("✅" if ok else "⚠️")
+            mark.setStyleSheet("font-size: 13pt;")
+            card.add(SettingRow(title, detail, mark))
+        pg.body.addWidget(label("VÉRIFICATIONS", "section"))
+        pg.body.addWidget(card)
+
+        row = QHBoxLayout()
+        in_group = next((ok for t, ok, _ in checks if t == "Accès à Docker"), True)
+        if not in_group:
+            fix = button("Autoriser WinBoat…", None, None)
+
+            def do_fix():
+                if root_helper("groupe-docker"):
+                    fix.setEnabled(False)
+                    fix.setText("Fait : déconnectez-vous puis reconnectez-vous")
+            fix.clicked.connect(do_fix)
+            row.addWidget(fix)
+        launch = button("Ouvrir WinBoat", "primary", lambda: spawn([self._winboat_bin()]))
+        launch.setEnabled(bool(self._winboat_bin()))
+        row.addWidget(launch)
+        row.addStretch()
+        w = QWidget()
+        w.setLayout(row)
+        pg.body.addWidget(w)
+        pg.body.addWidget(label("Au premier lancement, WinBoat télécharge et installe Windows "
+                                "(environ 30 minutes). Prévoyez au moins 32 Go libres.",
+                                "sub", wrap=True))
+        return finish(pg)
+
+    def _winboat_bin(self):
+        if DEMO:
+            return "winboat"
+        for c in ("winboat", "/opt/WinBoat/winboat", "/opt/winboat/winboat"):
+            if shutil.which(c) or os.path.exists(c):
+                return c
+        return ""
+
+    def _winboat_checks(self):
+        if DEMO:
+            return [("WinBoat", True, "Installé"), ("Virtualisation (KVM)", True, "Activée"),
+                    ("Mémoire", True, "16 Go (4 Go minimum)"), ("Espace libre", True, "87 Go (32 Go minimum)"),
+                    ("Docker", True, "Installé"), ("Accès à Docker", False, "Votre compte doit être autorisé"),
+                    ("FreeRDP 3", True, "Installé")]
+        import grp
+        try:
+            with open("/proc/meminfo") as f:
+                mem = int(f.readline().split()[1]) / 1024 / 1024
+        except Exception:
+            mem = 0
+        free = shutil.disk_usage(os.path.expanduser("~")).free / 1024 ** 3
+        try:
+            names = {grp.getgrgid(g).gr_name for g in os.getgroups()}
+            in_docker = "docker" in names
+        except Exception:
+            in_docker = False
+        return [
+            ("WinBoat", bool(self._winboat_bin()), "Installé" if self._winboat_bin() else "Non installé"),
+            ("Virtualisation (KVM)", os.path.exists("/dev/kvm"),
+             "Activée" if os.path.exists("/dev/kvm") else "À activer dans le BIOS/UEFI (VT-x / AMD-V)"),
+            ("Mémoire", mem >= 3.6, f"{mem:.0f} Go (4 Go minimum)"),
+            ("Espace libre", free >= 32, f"{free:.0f} Go (32 Go minimum)"),
+            ("Docker", has("docker"), "Installé" if has("docker") else "Non installé"),
+            ("Accès à Docker", in_docker,
+             "Autorisé" if in_docker else "Votre compte doit être autorisé"),
+            ("FreeRDP 3", has("xfreerdp3"), "Installé" if has("xfreerdp3") else "Non installé"),
+        ]
 
     # À propos ---------------------------------------------------------------------
     def page_apropos(self):

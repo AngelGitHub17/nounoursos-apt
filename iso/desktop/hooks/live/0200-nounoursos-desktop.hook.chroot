@@ -25,6 +25,17 @@ if [ -f /etc/xdg/autostart/calamares-desktop-icon.desktop ]; then
   sed -i '/^\[Desktop Entry\]/a Hidden=true' /etc/xdg/autostart/calamares-desktop-icon.desktop
 fi
 
+echo "[NounoursOS] WinBoat : les comptes créés par l'installateur rejoignent le groupe docker"
+U=/etc/calamares/modules/users.conf
+if [ -f "$U" ] && ! grep -qE '^[[:space:]]*-[[:space:]]*(name:[[:space:]]*)?docker[[:space:]]*$' "$U"; then
+  if grep -qE '^defaultGroups:[[:space:]]*$' "$U"; then
+    sed -i '/^defaultGroups:[[:space:]]*$/a\    - docker' "$U"
+  else
+    printf '\ndefaultGroups:\n    - users\n    - lpadmin\n    - netdev\n    - plugdev\n    - bluetooth\n    - docker\n' >> "$U"
+  fi
+fi
+grep -n -A12 '^defaultGroups' "$U" || true
+
 echo "[NounoursOS] Notifications de mise à jour : celles de NounoursOS remplacent celles de Discover"
 for f in /etc/xdg/autostart/org.kde.discover.notifier.desktop; do
   if [ -f "$f" ]; then sed -i '/^\[Desktop Entry\]/a Hidden=true' "$f"; fi

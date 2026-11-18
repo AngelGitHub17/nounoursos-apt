@@ -12,6 +12,8 @@ on:
       - "depot.conf"
       - ".github/workflows/publier.yml"
   workflow_dispatch:
+  schedule:
+    - cron: "17 4 * * 1"   # chaque lundi : récupère la dernière version de WinBoat
 
 permissions:
   contents: read
@@ -27,6 +29,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # nombre de commits = numéro de version des paquets
 
       - name: Importer la clé de signature
         env:
@@ -49,7 +53,9 @@ jobs:
         run: sudo apt-get update -q && sudo apt-get install -y -q apt-utils xz-utils
 
       - name: Construire les paquets
-        run: ./scripts/construire-paquets.sh "${{ github.run_number }}"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./scripts/construire-paquets.sh
 
       - name: Construire le dépôt signé
         run: ./scripts/construire-depot.sh

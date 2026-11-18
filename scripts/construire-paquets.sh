@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 #  Construit les paquets .deb de NounoursOS dans dist/
-#  Usage : ./scripts/construire-paquets.sh [numéro_de_build]
+#  Usage : ./scripts/construire-paquets.sh
 #
 #  - nounoursos-release           : identité et version du système (os-release)
 #  - nounoursos-desktop           : applis NounoursOS, thème, fonds d'écran, icônes
@@ -13,7 +13,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-RUN="${1:-0}"
+# Numéro de build = nombre de commits : ne change que si le projet change
+RUN="$(git -C "$ROOT" rev-list --count HEAD 2>/dev/null || echo 0)"
 ISO="$ROOT/iso"
 # shellcheck source=/dev/null
 . "$ISO/VERSION"          # VERSION, CODENAME, DEBIAN_BASE
@@ -26,7 +27,7 @@ rm -rf "$OUT" "$WORK"
 mkdir -p "$OUT" "$WORK"
 
 MAINTAINER="NounoursCorp <depot@nounourscorp.fr>"
-DESKTOP_VERSION="${VERSION}+git${RUN}"   # change à chaque publication
+DESKTOP_VERSION="${VERSION}+git${RUN}"   # change à chaque commit
 RELEASE_VERSION="${VERSION}"             # ne change que quand iso/VERSION change
 KEYRING_VERSION="1"
 
@@ -145,7 +146,8 @@ Installed-Size: @SIZE@
 Section: x11
 Priority: optional
 Depends: nounoursos-release, python3, python3-pyqt6, packagekit, packagekit-tools, kdialog, plasma-workspace
-Recommends: unattended-upgrades, pciutils, xdg-user-dirs, kde-cli-tools
+Recommends: unattended-upgrades, pciutils, xdg-user-dirs, kde-cli-tools,
+ winboat, docker.io, docker-compose, freerdp3-x11
 Homepage: https://nounourscorp.fr/
 Description: Bureau NounoursOS : applications, thème et fonds d'écran
  Paramètres, assistant de bienvenue, Mise à jour de NounoursOS,
@@ -204,6 +206,26 @@ Description: Clé et source APT du dépôt NounoursOS
  Permet à APT de recevoir et vérifier les mises à jour de NounoursOS.
 EOF
 build "$P"
+
+# -----------------------------------------------------------------------------
+# WinBoat (applications Windows) : copie du dernier .deb officiel dans le dépôt
+# NounoursOS -> préinstallé dans l'ISO et mis à jour via « Mise à jour de NounoursOS ».
+log "winboat (dernière version officielle)"
+AUTH=()
+if [ -n "${GH_TOKEN:-}" ]; then AUTH=(-H "Authorization: Bearer $GH_TOKEN"); fi
+WB_URL=""
+for repo in winboat-org/winboat TibixDev/winboat; do
+  WB_URL=$(curl -fsSL "${AUTH[@]}" "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null \
+           | grep -oE '"browser_download_url": *"[^"]*amd64\.deb"' | head -1 | sed -E 's/.*"(https[^"]+)"/\1/') || true
+  [ -n "$WB_URL" ] && break
+done
+if [ -n "$WB_URL" ] && curl -fsSL -o "$OUT/$(basename "$WB_URL")" "$WB_URL" \
+   && dpkg-deb -f "$OUT/$(basename "$WB_URL")" Package | grep -qx winboat; then
+  echo "   $(basename "$WB_URL")"
+else
+  rm -f "$OUT"/winboat*.deb
+  echo "⚠  WinBoat non récupéré : le dépôt est publié sans lui (non bloquant)." >&2
+fi
 
 log "Paquets prêts :"
 ls -1 "$OUT"

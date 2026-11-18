@@ -89,7 +89,7 @@ COMMON_OPTS=(
 if [ "$EDITION" = "desktop" ]; then
   lb config "${COMMON_OPTS[@]}" \
     --debian-installer none \
-    --bootappend-live "boot=live components quiet splash locales=fr_FR.UTF-8 keyboard-layouts=fr username=nounours user-fullname=Nounours hostname=nounoursos"
+    --bootappend-live "boot=live components quiet splash locales=fr_FR.UTF-8 keyboard-layouts=fr username=nounours user-fullname=Nounours hostname=nounoursos user-default-groups=audio,cdrom,dip,floppy,video,plugdev,netdev,powerdev,scanner,bluetooth,docker"
 else
   lb config "${COMMON_OPTS[@]}" \
     --debian-installer live \
@@ -113,7 +113,8 @@ if [ -f "$ROOT/../depot.conf" ]; then
   # shellcheck source=/dev/null
   . "$ROOT/../depot.conf"
   WANT="nounoursos-archive-keyring nounoursos-release"
-  if [ "$EDITION" = "desktop" ]; then WANT="$WANT nounoursos-desktop"; fi
+  OPTIONAL=""
+  if [ "$EDITION" = "desktop" ]; then WANT="$WANT nounoursos-desktop"; OPTIONAL="winboat"; fi
   IDX=$(curl -fsSL --max-time 30 "$URL/dists/$SUITE/$COMPONENT/binary-amd64/Packages" || true)
   mkdir -p config/packages.chroot
   ok=1
@@ -130,6 +131,20 @@ if [ -f "$ROOT/../depot.conf" ]; then
   done
   if [ "$ok" = 1 ]; then
     log "Dépôt NounoursOS : paquets intégrés ($WANT)"
+    # Paquets facultatifs : intégrés s'ils sont dans le dépôt, sinon on continue
+    for pkg in $OPTIONAL; do
+      file=""; sum=""
+      read -r file sum < <(printf '%s\n' "$IDX" | awk -v p="$pkg" '
+        /^Package: / {cur=$2} cur==p && /^Filename: / {f=$2} cur==p && /^SHA256: / {s=$2}
+        /^$/ {if (f!="") {print f, s; exit}} END {if (f!="") print f, s}' | head -1) || true
+      if [ -n "$file" ] && curl -fsSL --max-time 300 "$URL/$file" -o "config/packages.chroot/$(basename "$file")" \
+         && echo "$sum  config/packages.chroot/$(basename "$file")" | sha256sum -c --quiet -; then
+        log "  + $pkg"
+      else
+        rm -f "config/packages.chroot/$(basename "${file:-none}")"
+        echo "⚠  $pkg absent du dépôt : ISO construite sans lui." >&2
+      fi
+    done
   else
     rm -rf config/packages.chroot
     echo "⚠  Dépôt NounoursOS injoignable ou incomplet ($URL) : ISO construite sans ses paquets." >&2

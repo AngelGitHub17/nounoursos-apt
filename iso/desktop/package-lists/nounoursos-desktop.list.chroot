@@ -53,3 +53,8 @@ xdg-user-dirs
 bluedevil
 wireplumber
 kde-cli-tools
+
+# Applications Windows avec WinBoat (WinBoat lui-même vient du dépôt NounoursOS)
+docker.io
+docker-compose
+freerdp3-x11

@@ -10,5 +10,12 @@ APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Unattended-Upgrade "$v";
 CONF
     ;;
+  groupe-docker)
+    # Ajoute l'utilisateur qui a demandé (via pkexec) au groupe docker, pour WinBoat
+    u=$(getent passwd "${PKEXEC_UID:-}" | cut -d: -f1)
+    [ -n "$u" ] || { echo "Utilisateur inconnu" >&2; exit 2; }
+    usermod -aG docker "$u"
+    systemctl enable --now docker.service >/dev/null 2>&1 || true
+    ;;
   *) echo "Action inconnue : $1" >&2; exit 2 ;;
 esac
