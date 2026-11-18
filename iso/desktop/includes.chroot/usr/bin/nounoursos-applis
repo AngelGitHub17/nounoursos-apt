@@ -1,0 +1,17 @@
+#!/bin/bash
+# NounoursOS — installe en arrière-plan des applications Flathub (choisies dans
+# l'assistant de bienvenue). Usage : nounoursos-applis com.obsproject.Studio …
+[ $# -eq 0 ] && exit 0
+notify() { notify-send -a "NounoursOS" -i nounoursos "$1" "$2" 2>/dev/null || true; }
+
+notify "Installation des applications" "$# application(s) en cours d'installation. Vous pouvez continuer à utiliser l'ordinateur."
+flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+ok=0; ko=()
+for app in "$@"; do
+  if flatpak install --user -y --noninteractive flathub "$app"; then ok=$((ok + 1)); else ko+=("$app"); fi
+done
+if [ ${#ko[@]} -eq 0 ]; then
+  notify "Applications installées" "$ok application(s) prête(s) : retrouvez-les dans le menu."
+else
+  notify "Installation incomplète" "Non installées : ${ko[*]}. Réessayez depuis Discover."
+fi

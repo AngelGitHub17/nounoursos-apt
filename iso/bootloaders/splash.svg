@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1F1A2E"/><stop offset="0.6" stop-color="#2E2240"/><stop offset="1" stop-color="#5A3B3A"/>
+    </linearGradient>
+  </defs>
+  <rect width="640" height="480" fill="url(#bg)"/>
+  <g transform="translate(288 12) scale(0.125)"><defs>
+    <linearGradient id="fur2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#D99A5B"/>
+      <stop offset="1" stop-color="#B8733D"/>
+    </linearGradient>
+  </defs>
+  <!-- oreilles -->
+  <circle cx="128" cy="140" r="78" fill="url(#fur2)"/>
+  <circle cx="384" cy="140" r="78" fill="url(#fur2)"/>
+  <circle cx="128" cy="140" r="42" fill="#F3C9A0"/>
+  <circle cx="384" cy="140" r="42" fill="#F3C9A0"/>
+  <!-- tête -->
+  <ellipse cx="256" cy="282" rx="190" ry="176" fill="url(#fur2)"/>
+  <!-- museau -->
+  <ellipse cx="256" cy="350" rx="98" ry="76" fill="#F6DCC0"/>
+  <!-- yeux -->
+  <circle cx="186" cy="262" r="22" fill="#2B1D3A"/>
+  <circle cx="326" cy="262" r="22" fill="#2B1D3A"/>
+  <circle cx="193" cy="254" r="7" fill="#FFFFFF"/>
+  <circle cx="333" cy="254" r="7" fill="#FFFFFF"/>
+  <!-- nez + bouche -->
+  <ellipse cx="256" cy="322" rx="34" ry="24" fill="#2B1D3A"/>
+  <path d="M256 344 L256 372 M256 372 Q232 396 212 380 M256 372 Q280 396 300 380"
+        stroke="#2B1D3A" stroke-width="9" stroke-linecap="round" fill="none"/>
+</g>
+  <text x="320" y="112" font-family="DejaVu Sans" font-weight="bold" font-size="26" fill="#FFFFFF" text-anchor="middle">NounoursOS</text>
+  <text x="320" y="134" font-family="DejaVu Sans" font-size="12" fill="#F3B562" text-anchor="middle">@VERSION_NOUNOURSOS@</text>
+  <rect x="64" y="160" width="512" height="1" fill="#F3B562" fill-opacity="0.35"/>
+</svg>

@@ -25,7 +25,8 @@ var tasks = panel.addWidget("org.kde.plasma.icontasks");
 tasks.currentConfigGroup = ["General"];
 tasks.writeConfig("launchers", [
     "applications:org.kde.dolphin.desktop",
-    "applications:firefox-esr.desktop",
+    "preferred://browser",
+    "applications:NounoursLauncher.desktop",
     "applications:org.kde.konsole.desktop",
     "applications:org.kde.discover.desktop",
     "applications:nounoursos-parametres.desktop"

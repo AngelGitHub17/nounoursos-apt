@@ -13,7 +13,7 @@ on:
       - ".github/workflows/publier.yml"
   workflow_dispatch:
   schedule:
-    - cron: "17 4 * * 1"   # chaque lundi : récupère la dernière version de WinBoat
+    - cron: "17 4 * * *"   # chaque jour : dernières versions de WinBoat, NounoursLauncher, NounoursBrowser
 
 permissions:
   contents: read
@@ -55,6 +55,7 @@ jobs:
       - name: Construire les paquets
         env:
           GH_TOKEN: ${{ github.token }}
+          BROWSER_TOKEN: ${{ secrets.NOUNOURS_BROWSER_TOKEN }}
         run: ./scripts/construire-paquets.sh
 
       - name: Construire le dépôt signé

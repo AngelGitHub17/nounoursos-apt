@@ -36,6 +36,18 @@ if [ -f "$U" ] && ! grep -qE '^[[:space:]]*-[[:space:]]*(name:[[:space:]]*)?dock
 fi
 grep -n -A12 '^defaultGroups' "$U" || true
 
+echo "[NounoursOS] Thème GRUB : polices"
+T=/usr/share/grub/themes/nounoursos
+F=/usr/share/fonts/truetype/dejavu
+if command -v grub-mkfont >/dev/null && [ -f "$F/DejaVuSans.ttf" ]; then
+  grub-mkfont -s 16 -n "DejaVu Sans" -o "$T/dejavu_16.pf2" "$F/DejaVuSans.ttf" || true
+  grub-mkfont -s 16 -n "DejaVu Sans" -o "$T/dejavu_bold_16.pf2" "$F/DejaVuSans-Bold.ttf" || true
+  grub-mkfont -s 28 -n "DejaVu Sans" -o "$T/dejavu_bold_28.pf2" "$F/DejaVuSans-Bold.ttf" || true
+fi
+
+echo "[NounoursOS] Logithèque : Flathub disponible dans Discover"
+flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo || true
+
 echo "[NounoursOS] Notifications de mise à jour : celles de NounoursOS remplacent celles de Discover"
 for f in /etc/xdg/autostart/org.kde.discover.notifier.desktop; do
   if [ -f "$f" ]; then sed -i '/^\[Desktop Entry\]/a Hidden=true' "$f"; fi

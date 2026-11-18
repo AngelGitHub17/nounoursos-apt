@@ -5,7 +5,7 @@ import sys
 
 from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QRectF, QPointF
 from PyQt6.QtGui import QColor, QPainter, QLinearGradient, QRadialGradient, QIcon, QFont
-from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QGridLayout,
                              QStackedWidget, QFrame, QGraphicsDropShadowEffect,
                              QGraphicsOpacityEffect, QButtonGroup, QPushButton)
 
@@ -15,6 +15,17 @@ from . import (label, button, logo_pixmap, Card, SettingRow, Toggle, ChoiceCard,
 from .parametres import window_preview, lnf_preview
 
 FLAG = os.path.join(CONFIG_DIR, "bienvenue-faite")
+RECOMMENDED = [
+    ("com.obsproject.Studio", "OBS Studio", "Streaming et enregistrement", "#302E31", "●"),
+    ("com.discordapp.Discord", "Discord", "Discuter avec la communauté", "#5865F2", "D"),
+    ("org.prismlauncher.PrismLauncher", "Prism Launcher", "Minecraft (serveur NSDKPlus)", "#3FA36B", "M"),
+    ("com.valvesoftware.Steam", "Steam", "Jeux vidéo", "#1B2838", "S"),
+    ("com.spotify.Client", "Spotify", "Musique", "#1DB954", "♪"),
+    ("org.libreoffice.LibreOffice", "LibreOffice", "Bureautique", "#18A303", "L"),
+    ("org.gimp.GIMP", "GIMP", "Retouche d'images", "#7E57C2", "G"),
+    ("com.visualstudio.code", "Visual Studio Code", "Programmation", "#3D7EDB", "<>"),
+]
+
 GREETINGS = ["Bonjour", "Hello", "Hola", "Ciao", "Hallo", "Olá", "Merhaba", "Hej"]
 
 
@@ -166,7 +177,7 @@ class Assistant(Shell):
     def __init__(self):
         super().__init__(860, 600)
         self.choice = {"dark": False, "accent": HONEY, "layout": "classique",
-                       "auto_check": True, "auto_sec": True}
+                       "auto_check": True, "auto_sec": True, "apps": set()}
         self.stack = QStackedWidget()
         self.body.addWidget(self.stack, 1)
 
@@ -183,7 +194,7 @@ class Assistant(Shell):
         nav.addWidget(self.next_b)
         self.body.addLayout(nav)
 
-        for build in (self.p_hello, self.p_look, self.p_layout, self.p_updates, self.p_done):
+        for build in (self.p_hello, self.p_look, self.p_layout, self.p_apps, self.p_updates, self.p_done):
             self.stack.addWidget(build())
         self.go(0)
 
@@ -317,6 +328,24 @@ class Assistant(Shell):
         lay.addStretch()
         return w
 
+    def p_apps(self):
+        w, lay = self._page("Applis recommandées",
+                            "Une sélection NounoursCorp, installée en arrière-plan depuis Flathub. "
+                            "Des milliers d'autres vous attendent dans Discover.")
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(14)
+        grid.setVerticalSpacing(10)
+        for i, (app_id, name, desc, color, glyph) in enumerate(RECOMMENDED):
+            card = Card()
+            t = Toggle(False)
+            t.toggled.connect(lambda on, a=app_id: (self.choice["apps"].add(a) if on
+                                                    else self.choice["apps"].discard(a)))
+            card.add(SettingRow(name, desc, t, tile_icon(None, color, 32, glyph)))
+            grid.addWidget(card, i // 2, i % 2)
+        lay.addLayout(grid)
+        lay.addStretch()
+        return w
+
     def p_updates(self):
         w, lay = self._page("Restez à jour",
                             "Les mises à jour apportent de nouvelles fonctions de NounoursOS "
@@ -364,6 +393,8 @@ class Assistant(Shell):
             apply_color_scheme(ch["dark"], ch["accent"])
             if not ch["auto_sec"]:
                 root_helper("auto-securite", "off")
+        if ch["apps"] and not DEMO:
+            spawn(["nounoursos-applis", *sorted(ch["apps"])])
         write_conf("apparence.conf", {"theme": "sombre" if ch["dark"] else "clair", "accent": ch["accent"]})
         write_conf("maj.conf", {"recherche_auto": "true" if ch["auto_check"] else "false"})
         os.makedirs(CONFIG_DIR, exist_ok=True)

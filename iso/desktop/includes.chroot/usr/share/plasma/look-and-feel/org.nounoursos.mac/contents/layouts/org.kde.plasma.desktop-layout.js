@@ -42,7 +42,8 @@ var tasks = dock.addWidget("org.kde.plasma.icontasks");
 tasks.currentConfigGroup = ["General"];
 tasks.writeConfig("launchers", [
     "applications:org.kde.dolphin.desktop",
-    "applications:firefox-esr.desktop",
+    "preferred://browser",
+    "applications:NounoursLauncher.desktop",
     "applications:org.kde.konsole.desktop",
     "applications:org.kde.kate.desktop",
     "applications:org.kde.discover.desktop",

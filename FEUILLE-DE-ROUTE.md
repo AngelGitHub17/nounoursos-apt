@@ -10,17 +10,16 @@ Légende : ✅ fait · 🔜 prochaine version · 💡 idée à creuser
 - **WinBoat préinstallé** : applications Windows dans des fenêtres NounoursOS
   (Docker, FreeRDP 3, groupe `docker`, page *Paramètres › Applications Windows*)
 
-## 1.1 🔜 — L'écosystème NounoursCorp
+## 1.1 « Calinou » ✅
 
-| Fonction | Détail | Effort |
-|---|---|---|
-| **NounoursLauncher et NounoursBrowser préinstallés** | Paquets `.deb` dans le dépôt NounoursOS, mis à jour comme le reste | Moyen |
-| **Logithèque NounoursOS** | Flatpak + Flathub dans Discover, sélection d'applis « recommandées par NounoursCorp » | Faible |
-| **Thème de démarrage complet** | Menu GRUB et menu de l'ISO aux couleurs NounoursOS, écran de verrouillage assorti | Faible |
-| **Sons et curseur NounoursOS** | Sons système doux (ouverture de session, notifications), curseur assorti | Faible |
-| **ISO bureau sous 2 Go** | Tri des firmwares et applis pour revenir à un seul fichier de téléchargement | Faible |
+- NounoursLauncher et NounoursBrowser préinstallés (NounoursBrowser par défaut), mis à jour par le dépôt
+- Logithèque : Flatpak + Flathub dans Discover, sélection NounoursCorp dans l'assistant
+- Menu de démarrage (ISO et système installé) et écran de verrouillage NounoursOS
+- Thème de sons NounoursOS
+- ISO bureau allégée (firmwares non dupliqués)
+- *Reporté : curseur NounoursOS (à dessiner)*
 
-## 1.2 💡 — Confort façon macOS
+## 1.2 🔜 — Confort façon macOS
 
 | Fonction | Détail |
 |---|---|

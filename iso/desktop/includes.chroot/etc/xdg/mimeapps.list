@@ -1,0 +1,6 @@
+# NounoursOS : NounoursBrowser par défaut, Firefox ESR en secours
+[Default Applications]
+x-scheme-handler/http=nounours-browser.desktop;firefox-esr.desktop;
+x-scheme-handler/https=nounours-browser.desktop;firefox-esr.desktop;
+text/html=nounours-browser.desktop;firefox-esr.desktop;
+application/xhtml+xml=nounours-browser.desktop;firefox-esr.desktop;

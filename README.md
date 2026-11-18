@@ -44,9 +44,12 @@ Dépôt APT publié : **https://angelgithub17.github.io/nounoursos-apt**
 3. **Mettre la clé privée dans GitHub** : *Settings → Secrets and variables → Actions →
    New repository secret* — nom `GPG_PRIVATE_KEY`, valeur = tout le fichier privé.
    (Le script le fait tout seul si la commande `gh` est installée et connectée.)
-4. **Sauvegarder la clé privée** (gestionnaire de mots de passe, clé USB…) puis la supprimer
+4. *(Pour préinstaller NounoursBrowser, dépôt privé)* créer un jeton GitHub
+   **Fine-grained** limité au dépôt `Nounours-Browser`, permission *Contents : Read-only*,
+   et l'ajouter en secret `NOUNOURS_BROWSER_TOKEN`. Sans lui, l'ISO utilise Firefox.
+5. **Sauvegarder la clé privée** (gestionnaire de mots de passe, clé USB…) puis la supprimer
    du dossier. ⚠️ Si elle est perdue, il faudra changer la clé sur toutes les machines.
-5. **Committer la clé publique** : `git add nounoursos.asc && git commit -m "Clé publique" && git push`
+6. **Committer la clé publique** : `git add nounoursos.asc && git commit -m "Clé publique" && git push`
    → l'Action se lance et publie le dépôt (onglet *Actions* pour suivre).
 
 À partir de là, `iso/build.sh` détecte le dépôt en ligne et l'intègre aux ISO.

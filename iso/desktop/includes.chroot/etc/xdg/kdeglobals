@@ -3,3 +3,9 @@ LookAndFeelPackage=org.nounoursos.classique
 
 [Icons]
 Theme=breeze
+
+[General]
+BrowserApplication=nounours-browser.desktop
+
+[Sounds]
+Theme=nounoursos

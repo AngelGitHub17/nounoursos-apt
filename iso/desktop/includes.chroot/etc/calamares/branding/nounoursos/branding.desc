@@ -13,10 +13,10 @@ navigation:              widget
 strings:
     productName:         "NounoursOS"
     shortProductName:    "NounoursOS"
-    version:             "1.0"
-    shortVersion:        "1.0"
-    versionedName:       "NounoursOS 1.0 « Guimauve »"
-    shortVersionedName:  "NounoursOS 1.0"
+    version:             "@VERSION@"
+    shortVersion:        "@VERSION@"
+    versionedName:       "NounoursOS @VERSION@ « @CODENAME@ »"
+    shortVersionedName:  "NounoursOS @VERSION@"
     # IMPORTANT : on garde "debian" ici. Le GRUB signé (Secure Boot) de Debian
     # cherche sa configuration dans /EFI/debian/. Un autre nom casserait le
     # démarrage UEFI avec Secure Boot. Le nom affiché dans GRUB, lui, vient de

@@ -58,3 +58,8 @@ kde-cli-tools
 docker.io
 docker-compose
 freerdp3-x11
+
+# Logithèque : Flatpak + Flathub dans Discover
+flatpak
+plasma-discover-backend-flatpak
+libnotify-bin

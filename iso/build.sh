@@ -75,7 +75,6 @@ COMMON_OPTS=(
   --security true
   --updates true
   --firmware-chroot true
-  --firmware-binary true
   --apt-recommends true
   --binary-images iso-hybrid
   --chroot-squashfs-compression-type xz
@@ -87,11 +86,15 @@ COMMON_OPTS=(
 )
 
 if [ "$EDITION" = "desktop" ]; then
+  # Pas de copie supplémentaire des firmwares sur l'ISO : Calamares installe le
+  # système live (qui les contient déjà). Gain : plusieurs centaines de Mo.
   lb config "${COMMON_OPTS[@]}" \
+    --firmware-binary false \
     --debian-installer none \
     --bootappend-live "boot=live components quiet splash locales=fr_FR.UTF-8 keyboard-layouts=fr username=nounours user-fullname=Nounours hostname=nounoursos user-default-groups=audio,cdrom,dip,floppy,video,plugdev,netdev,powerdev,scanner,bluetooth,docker"
 else
   lb config "${COMMON_OPTS[@]}" \
+    --firmware-binary true \
     --debian-installer live \
     --debian-installer-gui false \
     --bootappend-live "boot=live components locales=fr_FR.UTF-8 keyboard-layouts=fr username=nounours user-fullname=Nounours hostname=nounoursos-server"
@@ -114,7 +117,7 @@ if [ -f "$ROOT/../depot.conf" ]; then
   . "$ROOT/../depot.conf"
   WANT="nounoursos-archive-keyring nounoursos-release"
   OPTIONAL=""
-  if [ "$EDITION" = "desktop" ]; then WANT="$WANT nounoursos-desktop"; OPTIONAL="winboat"; fi
+  if [ "$EDITION" = "desktop" ]; then WANT="$WANT nounoursos-desktop"; OPTIONAL="winboat nounours-launcher nounours-browser"; fi
   IDX=$(curl -fsSL --max-time 30 "$URL/dists/$SUITE/$COMPONENT/binary-amd64/Packages" || true)
   mkdir -p config/packages.chroot
   ok=1
@@ -150,6 +153,14 @@ if [ -f "$ROOT/../depot.conf" ]; then
     echo "⚠  Dépôt NounoursOS injoignable ou incomplet ($URL) : ISO construite sans ses paquets." >&2
   fi
 fi
+
+# Menu de démarrage de l'ISO aux couleurs NounoursOS (rendu par live-build)
+mkdir -p config/bootloaders
+sed "s/@VERSION_NOUNOURSOS@/${VERSION} « ${CODENAME} »/" "$ROOT/bootloaders/splash.svg" > config/bootloaders/splash.svg
+
+# Version dans l'installateur Calamares
+B=config/includes.chroot/etc/calamares/branding/nounoursos/branding.desc
+[ -f "$B" ] && sed -i -e "s/@VERSION@/${VERSION}/g" -e "s/@CODENAME@/${CODENAME}/g" "$B"
 
 # Fichiers de version générés (une seule source de vérité : VERSION)
 mkdir -p config/includes.chroot/usr/share/nounoursos

@@ -133,6 +133,8 @@ take "$P" "$D" "usr/share/plasma/look-and-feel/org.nounoursos.*"
 take "$P" "$D" "usr/share/wallpapers/NounoursOS"
 take "$P" "$D" "usr/share/nounoursos/plymouth"
 take "$P" "$D" "etc/xdg/autostart/nounoursos-*.desktop"
+take "$P" "$D" "usr/share/sounds/nounoursos"
+take "$P" "$D" "usr/share/grub/themes/nounoursos"
 take "$P" "$C" "usr/share/icons/hicolor/*/apps/nounoursos.*"
 take "$P" "$C" "usr/share/nounoursos/logo*"
 take "$P" "$C" "usr/share/nounoursos/grub-background.png"
@@ -147,7 +149,8 @@ Section: x11
 Priority: optional
 Depends: nounoursos-release, python3, python3-pyqt6, packagekit, packagekit-tools, kdialog, plasma-workspace
 Recommends: unattended-upgrades, pciutils, xdg-user-dirs, kde-cli-tools,
- winboat, docker.io, docker-compose, freerdp3-x11
+ winboat, docker.io, docker-compose, freerdp3-x11, nounours-launcher, nounours-browser,
+ flatpak, plasma-discover-backend-flatpak
 Homepage: https://nounourscorp.fr/
 Description: Bureau NounoursOS : applications, thème et fonds d'écran
  Paramètres, assistant de bienvenue, Mise à jour de NounoursOS,
@@ -208,28 +211,16 @@ EOF
 build "$P"
 
 # -----------------------------------------------------------------------------
-# WinBoat (applications Windows) : copie du dernier .deb officiel dans le dépôt
-# NounoursOS -> préinstallé dans l'ISO et mis à jour via « Mise à jour de NounoursOS ».
-log "winboat (dernière version officielle)"
-AUTH=()
-if [ -n "${GH_TOKEN:-}" ]; then AUTH=(-H "Authorization: Bearer $GH_TOKEN"); fi
-WB_URL=""
-for repo in winboat-org/winboat TibixDev/winboat; do
-  WB_URL=$(curl -fsSL "${AUTH[@]}" "https://api.github.com/repos/$repo/releases/latest" 2>/dev/null \
-           | grep -oE '"browser_download_url": *"[^"]*amd64\.deb"' | head -1 | sed -E 's/.*"(https[^"]+)"/\1/') || true
-  [ -n "$WB_URL" ] && break
-done
-WB_TMP="$WORK/winboat.deb"
-if [ -n "$WB_URL" ] && curl -fsSL -o "$WB_TMP" "$WB_URL" \
-   && dpkg-deb -f "$WB_TMP" Package | grep -qx winboat; then
-  # Nom à la Debian (nom_version_arch.deb) : obligatoire pour live-build
-  WB_NAME="winboat_$(dpkg-deb -f "$WB_TMP" Version | sed 's/^[0-9]*://')_$(dpkg-deb -f "$WB_TMP" Architecture).deb"
-  mv "$WB_TMP" "$OUT/$WB_NAME"
-  echo "   $WB_NAME"
-else
-  rm -f "$OUT"/winboat*.deb
-  echo "⚠  WinBoat non récupéré : le dépôt est publié sans lui (non bloquant)." >&2
-fi
+# Applications tierces copiées depuis leurs Releases GitHub (dernière version) :
+# préinstallées dans l'ISO et mises à jour via « Mise à jour de NounoursOS ».
+# Non bloquant : si une appli n'est pas récupérable, le dépôt est publié sans elle.
+log "Applications (dernières versions)"
+M="$ROOT/scripts/miroir-github.py"
+python3 "$M" winboat-org/winboat '-amd64\.deb$' winboat "$OUT" \
+  || python3 "$M" TibixDev/winboat '-amd64\.deb$' winboat "$OUT" || true
+python3 "$M" AngelGitHub17/Nounours-Launcher '_amd64\.deb$' nounours-launcher "$OUT" || true
+# Dépôt privé : jeton dédié (secret NOUNOURS_BROWSER_TOKEN)
+TOKEN_VAR=BROWSER_TOKEN python3 "$M" AngelGitHub17/Nounours-Browser '_amd64\.deb$' nounours-browser "$OUT" || true
 
 log "Paquets prêts :"
 ls -1 "$OUT"
