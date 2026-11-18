@@ -200,15 +200,17 @@ def load_state():
 
 
 def install_command(offline=False):
-    """Commande d'installation (lancée par QProcess pour suivre la progression)."""
+    """Commande d'installation (lancée par QProcess pour suivre la progression).
+
+    APT via l'action administrateur NounoursOS (pkexec) : demande le mot de passe
+    une fois, puis affiche « dlstatus » (téléchargement) et « pmstatus » (installation).
+    """
     if DEMO:
-        return ["sh", "-c", "for i in $(seq 0 5 100); do echo \"Percentage:\t$i\"; "
-                            "echo 'Status:\tInstalling'; sleep 0.15; done"]
-    if offline:
-        # Télécharge maintenant, programme l'installation au prochain démarrage
-        return ["sh", "-c", "LC_ALL=C pkcon update --only-download -y --plain --noninteractive && "
-                            "LC_ALL=C pkcon offline-trigger"]
-    return ["env", "LC_ALL=C", "pkcon", "update", "-y", "--plain", "--noninteractive"]
+        return ["sh", "-c", "for i in $(seq 0 10 100); do echo \"dlstatus:1:$i:Téléchargement\"; sleep 0.05; done; "
+                            "for i in $(seq 0 5 100); do echo \"pmstatus:paquet:$i:Installation de paquet\"; "
+                            "sleep 0.1; done"]
+    from . import HELPER
+    return ["pkexec", HELPER, "maj-preparer" if offline else "maj-maintenant"]
 
 
 STATUS_FR = {

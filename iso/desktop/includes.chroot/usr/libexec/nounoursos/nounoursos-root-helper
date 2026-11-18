@@ -1,7 +1,8 @@
-#!/bin/sh
+#!/bin/bash
 # NounoursOS — actions administrateur appelées via pkexec par les applis NounoursOS.
 # Liste fermée d'actions : rien d'autre ne peut être exécuté par ce biais.
 set -e
+umask 022
 case "$1" in
   auto-securite)
     case "$2" in on) v=1 ;; off) v=0 ;; *) echo "usage: auto-securite on|off" >&2; exit 2 ;; esac
@@ -16,6 +17,28 @@ CONF
     [ -n "$u" ] || { echo "Utilisateur inconnu" >&2; exit 2; }
     usermod -aG docker "$u"
     systemctl enable --now docker.service >/dev/null 2>&1 || true
+    ;;
+  maj-maintenant|maj-preparer)
+    # Mise à jour avec APT (plus fiable que PackageKit pour les paquets NounoursOS) :
+    # pas de question de configuration, attente si un autre outil tient le verrou,
+    # progression lisible (APT::Status-Fd) et journal complet.
+    export DEBIAN_FRONTEND=noninteractive
+    mkdir -p /var/log/nounoursos /var/lib/nounoursos
+    LOG=/var/log/nounoursos/maj.log
+    OPTS="-y -q -o DPkg::Lock::Timeout=300 -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold -o APT::Status-Fd=1"
+    run_maj() {
+      echo "=== $(date '+%F %T') : $1"
+      apt-get -q -o DPkg::Lock::Timeout=300 update || return $?
+      if [ "$1" = maj-maintenant ]; then
+        apt-get $OPTS full-upgrade || return $?
+        apt-get -y -q -o DPkg::Lock::Timeout=300 autoremove || true
+      else
+        apt-get $OPTS --download-only full-upgrade || return $?
+        touch /var/lib/nounoursos/maj-au-demarrage
+      fi
+    }
+    run_maj "$1" 2>&1 | tee -a "$LOG"
+    exit "${PIPESTATUS[0]:-0}"
     ;;
   *) echo "Action inconnue : $1" >&2; exit 2 ;;
 esac

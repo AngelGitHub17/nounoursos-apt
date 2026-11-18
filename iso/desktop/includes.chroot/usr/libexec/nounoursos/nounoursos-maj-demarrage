@@ -1,0 +1,23 @@
+#!/bin/bash
+# NounoursOS — installe au démarrage la mise à jour téléchargée par
+# « Redémarrer et mettre à jour » (avant l'écran de connexion, comme macOS).
+umask 022
+FLAG=/var/lib/nounoursos/maj-au-demarrage
+LOG=/var/log/nounoursos/maj.log
+msg() { plymouth display-message --text="$1" 2>/dev/null || echo "$1"; }
+
+rm -f "$FLAG"            # jamais deux fois de suite, même en cas d'échec
+mkdir -p /var/log/nounoursos
+msg "Installation de la mise à jour de NounoursOS… Ne pas éteindre l'ordinateur."
+export DEBIAN_FRONTEND=noninteractive
+{
+  echo "=== $(date '+%F %T') : installation au démarrage"
+  apt-get -y -q --no-download -o DPkg::Lock::Timeout=120 \
+    -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold full-upgrade
+  rc=$?
+  apt-get -y -q autoremove || true
+  echo "=== code $rc"
+} >> "$LOG" 2>&1
+msg "Mise à jour terminée."
+sleep 2
+exit 0

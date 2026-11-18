@@ -1,0 +1,16 @@
+[Unit]
+Description=Installation de la mise à jour de NounoursOS au démarrage
+ConditionPathExists=/var/lib/nounoursos/maj-au-demarrage
+After=local-fs.target systemd-remount-fs.service
+Before=display-manager.service systemd-user-sessions.service
+DefaultDependencies=no
+Conflicts=shutdown.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/nounoursos/nounoursos-maj-demarrage
+TimeoutStartSec=infinity
+StandardOutput=journal+console
+
+[Install]
+WantedBy=multi-user.target

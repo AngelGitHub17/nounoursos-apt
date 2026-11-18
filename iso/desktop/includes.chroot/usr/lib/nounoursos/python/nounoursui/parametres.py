@@ -23,7 +23,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QHBoxLayout, QV
 from . import (label, button, Card, SettingRow, Toggle, ChoiceCard, Swatch, tile_icon,
                logo_pixmap, colors, stylesheet, run, spawn, has, open_kcm, root_helper,
                user_info, os_release, read_conf, write_conf, apply_color_scheme, apply_accent,
-               plasma_script, is_dark, ACCENTS, HONEY, LNF, WALLPAPERS, DEMO, CONFIG_DIR)
+               plasma_script, is_dark, ACCENTS, HONEY, LNF, WALLPAPERS, DEMO, CONFIG_DIR, DATA)
 from . import updates as U
 from . import kcm as K
 from .maj import CheckThread
@@ -130,8 +130,22 @@ class SidebarDelegate(QStyledItemDelegate):
             p.restore()
 
 
-def real_icon(names, size, color=GREY, glyph="•"):
-    """Vraie icône colorée du thème (premier nom trouvé), sinon pastille de secours."""
+ICONES = DATA + "/icones"
+
+
+def nounours_icon(key, size):
+    """Icône NounoursOS dessinée pour Paramètres (usr/share/nounoursos/icones)."""
+    path = os.path.join(ICONES, key + ".svg")
+    if key and os.path.exists(path):
+        return QIcon(path).pixmap(QSize(size, size))
+    return None
+
+
+def real_icon(names, size, color=GREY, glyph="•", key=None):
+    """Icône NounoursOS si elle existe, sinon icône du thème, sinon pastille de secours."""
+    pm = nounours_icon(key, size) if key else None
+    if pm is not None and not pm.isNull():
+        return pm
     for n in (names or "").split("|"):
         if n and QIcon.hasThemeIcon(n):
             return QIcon.fromTheme(n).pixmap(QSize(size, size))
@@ -374,7 +388,7 @@ class Settings(QMainWindow):
                 self.list.addItem(sep)
             first = False
             for key, title, icon, color, glyph, kcm, desc, kw in group:
-                it = QListWidgetItem(QIcon(real_icon(icon, 24, color, glyph)), title)
+                it = QListWidgetItem(QIcon(real_icon(icon, 24, color, glyph, key)), title)
                 it.setData(Qt.ItemDataRole.UserRole, key)
                 it.setSizeHint(QSize(200, 34))
                 if key == "maj" and count:
@@ -458,7 +472,7 @@ class Settings(QMainWindow):
 
     def page_kcm(self, key):
         _, title, icon, color, glyph, kcm, desc, _kw = ITEMS[key]
-        return KcmPage(kcm, title, real_icon(icon, 32, color, glyph))
+        return KcmPage(kcm, title, real_icon(icon, 32, color, glyph, key))
 
     def open_inline(self, kcm, title, icon_names="preferences-system"):
         """Ouvre un module KDE dans la fenêtre, avec « ‹ Retour » vers la page actuelle."""

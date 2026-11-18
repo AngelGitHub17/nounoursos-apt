@@ -207,6 +207,42 @@ class UpdateWindow(QWidget):
         self.more.setText("Masquer les détails" if vis else "Plus d'infos…")
         self._shrink()
 
+    def _explain_error(self):
+        txt = "\n".join(self.log[-60:])
+        if "Could not get lock" in txt or "Impossible d'obtenir le verrou" in txt:
+            return "Une autre installation est en cours. Patientez quelques minutes puis réessayez."
+        if "Temporary failure resolving" in txt or "Could not resolve" in txt or "Failed to fetch" in txt:
+            return "Les serveurs de mise à jour sont injoignables. Vérifiez votre connexion à Internet."
+        if "No space left" in txt or "You don't have enough free space" in txt:
+            return "Espace disque insuffisant. Libérez de la place puis réessayez."
+        if "unmet dependencies" in txt or "dépendances non satisfaites" in txt:
+            return "Un paquet ne peut pas être installé pour le moment (dépendances)."
+        return "Une erreur s'est produite pendant l'installation. Le détail est ci-dessous."
+
+    def _show_log(self):
+        """Affiche les dernières lignes du journal (et les garde dans ~/.cache/nounoursos)."""
+        lines = [l for l in self.log if not l.startswith(("dlstatus:", "pmstatus:"))]
+        text = "\n".join(lines[-40:]) or "(aucun détail)"
+        try:
+            os.makedirs(CACHE_DIR, exist_ok=True)
+            with open(os.path.join(CACHE_DIR, "maj-erreur.log"), "w") as f:
+                f.write("\n".join(self.log))
+        except OSError:
+            pass
+        box = QLabel(text)
+        box.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        box.setStyleSheet("font-family: monospace; font-size: 8.5pt; color: #5A4F63;")
+        box.setWordWrap(True)
+        holder = QWidget()
+        v = QVBoxLayout(holder)
+        v.addWidget(label("Détails (journal complet : /var/log/nounoursos/maj.log)", "sub"))
+        v.addWidget(box)
+        v.addStretch()
+        self.details.setWidget(holder)
+        self.details.show()
+        self.more.hide()
+        self._shrink()
+
     # --- Actions -----------------------------------------------------------
     def check(self):
         self.show_checking()
@@ -232,6 +268,7 @@ class UpdateWindow(QWidget):
         self.status.setText("Préparation…")
         self.status.show()
         self._btns()
+        self.log = []
         self.proc = QProcess(self)
         self.proc.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
         self.proc.readyReadStandardOutput.connect(self._output)
@@ -242,16 +279,28 @@ class UpdateWindow(QWidget):
     def _output(self):
         for line in bytes(self.proc.readAllStandardOutput()).decode(errors="ignore").splitlines():
             line = line.strip()
-            if line.startswith("Percentage:"):
+            if not line:
+                continue
+            self.log.append(line)
+            # Progression APT : dlstatus = téléchargement (0-40 %), pmstatus = installation (40-100 %)
+            parts = line.split(":", 3)
+            if len(parts) == 4 and parts[0] in ("dlstatus", "pmstatus"):
                 try:
-                    pct = int(line.split()[-1])
-                    if 0 <= pct <= 100:
-                        self.progress.setValue(pct)
+                    pct = float(parts[2])
+                except ValueError:
+                    continue
+                if parts[0] == "dlstatus":
+                    self.progress.setValue(int(pct * 0.4))
+                    self.status.setText("Téléchargement des mises à jour…")
+                else:
+                    self.progress.setValue(40 + int(pct * 0.6))
+                    pkg = parts[1] if parts[1] not in ("dpkg-exec", "") else ""
+                    self.status.setText(f"Installation… {pkg}".strip())
+            elif line.startswith("Percentage:"):           # ancien format (pkcon)
+                try:
+                    self.progress.setValue(int(line.split()[-1]))
                 except ValueError:
                     pass
-            elif line.startswith("Status:"):
-                st = line.split(":", 1)[1].strip()
-                self.status.setText(U.STATUS_FR.get(st, self.status.text()))
 
     def _finished(self, code, _status):
         need_reboot = self.state.needs_reboot
@@ -277,11 +326,15 @@ class UpdateWindow(QWidget):
                     self.b_later.setText("Fermer")
             self.status.hide()
         else:
-            self.title.setText("La mise à jour n'a pas pu se terminer")
-            self.subtitle.setText("Vérifiez votre connexion à Internet, puis réessayez. "
-                                  "(Mot de passe refusé ou annulé ?)")
             self.progress.hide()
             self.status.hide()
+            if code in (126, 127):
+                self.title.setText("Mise à jour annulée")
+                self.subtitle.setText("Le mot de passe administrateur n'a pas été donné.")
+            else:
+                self.title.setText("La mise à jour n'a pas pu se terminer")
+                self.subtitle.setText(self._explain_error())
+                self._show_log()
             self._btns(self.b_later, self.b_now)
         self._shrink()
 

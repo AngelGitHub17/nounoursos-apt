@@ -55,7 +55,8 @@ for f in /etc/xdg/autostart/org.kde.discover.notifier.desktop; do
 done
 
 echo "[NounoursOS] Droits des outils NounoursOS"
-chmod 755 /usr/bin/nounoursos-* /usr/libexec/nounoursos/nounoursos-root-helper
+chmod 755 /usr/bin/nounoursos-* /usr/libexec/nounoursos/*
+systemctl enable nounoursos-maj-demarrage.service || true
 python3 -m compileall -q /usr/lib/nounoursos/python || true
 
 echo "[NounoursOS] Initramfs (pour prendre en compte Plymouth)"

@@ -135,6 +135,8 @@ take "$P" "$D" "usr/share/nounoursos/plymouth"
 take "$P" "$D" "etc/xdg/autostart/nounoursos-*.desktop"
 take "$P" "$D" "usr/share/sounds/nounoursos"
 take "$P" "$D" "usr/share/grub/themes/nounoursos"
+take "$P" "$D" "usr/share/nounoursos/icones"
+take "$P" "$D" "usr/lib/systemd/system/nounoursos-*.service"
 take "$P" "$C" "usr/share/icons/hicolor/*/apps/nounoursos.*"
 take "$P" "$C" "usr/share/nounoursos/logo*"
 take "$P" "$C" "usr/share/nounoursos/grub-background.png"
@@ -172,6 +174,9 @@ set -e
 if [ "$1" = "configure" ]; then
   gtk-update-icon-cache -f -q /usr/share/icons/hicolor 2>/dev/null || true
   python3 -m compileall -q /usr/lib/nounoursos/python 2>/dev/null || true
+  # « Redémarrer et mettre à jour » : service d'installation au démarrage
+  if [ -d /run/systemd/system ]; then systemctl daemon-reload || true; fi
+  systemctl enable nounoursos-maj-demarrage.service >/dev/null 2>&1 || true
 fi
 exit 0
 EOF
