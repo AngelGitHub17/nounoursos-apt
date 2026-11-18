@@ -219,9 +219,13 @@ for repo in winboat-org/winboat TibixDev/winboat; do
            | grep -oE '"browser_download_url": *"[^"]*amd64\.deb"' | head -1 | sed -E 's/.*"(https[^"]+)"/\1/') || true
   [ -n "$WB_URL" ] && break
 done
-if [ -n "$WB_URL" ] && curl -fsSL -o "$OUT/$(basename "$WB_URL")" "$WB_URL" \
-   && dpkg-deb -f "$OUT/$(basename "$WB_URL")" Package | grep -qx winboat; then
-  echo "   $(basename "$WB_URL")"
+WB_TMP="$WORK/winboat.deb"
+if [ -n "$WB_URL" ] && curl -fsSL -o "$WB_TMP" "$WB_URL" \
+   && dpkg-deb -f "$WB_TMP" Package | grep -qx winboat; then
+  # Nom à la Debian (nom_version_arch.deb) : obligatoire pour live-build
+  WB_NAME="winboat_$(dpkg-deb -f "$WB_TMP" Version | sed 's/^[0-9]*://')_$(dpkg-deb -f "$WB_TMP" Architecture).deb"
+  mv "$WB_TMP" "$OUT/$WB_NAME"
+  echo "   $WB_NAME"
 else
   rm -f "$OUT"/winboat*.deb
   echo "⚠  WinBoat non récupéré : le dépôt est publié sans lui (non bloquant)." >&2
