@@ -42,6 +42,12 @@ Légende : ✅ fait · 🔜 prochaine version · 💡 idée à creuser
 | **Kit streamer** | Option dans l'assistant : OBS Studio préconfiguré (multistream Twitch / YouTube / Kick) |
 | **Mode jeu** | Steam, GameMode et pilotes graphiques en un clic depuis Paramètres |
 
+## LiberNT et NounoursNT ✅ (aperçu)
+
+- NounoursOS NT démarre LiberNT (système NT libre, projet indépendant) dans une fenêtre, en un clic
+- NounoursNT : système NT de NounoursCorp basé sur les sources de LiberNT, aux couleurs NounoursOS, publié
+  en aperçu de développement (Releases `nounoursnt-…`)
+
 ## NounoursOS NT 💡
 
 | Fonction | Détail |

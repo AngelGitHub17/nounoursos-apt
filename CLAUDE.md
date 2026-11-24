@@ -2,7 +2,8 @@
 
 Distribution Linux de **NounoursCorp** basée sur **Debian 13 « Trixie »**.
 Trois éditions : **NounoursOS** (`desktop`, KDE Plasma 6), **NounoursOS NT** (`nt`, bureau + couche Windows),
-**NounoursOS Server** (`server`). Version actuelle : voir `iso/VERSION` (1.3 « Origami »).
+**NounoursOS Server** (`server`). À côté : **NounoursNT**, un système NT à part entière construit à partir des
+sources de LiberNT (dossier `nounoursnt/`). Version actuelle : voir `iso/VERSION` (1.3 « Origami »).
 
 Tout est en **français** : interface, commentaires, messages de commit, notes de version.
 
@@ -15,6 +16,21 @@ Tout est en **français** : interface, commentaires, messages de commit, notes d
 - Tester ce qui peut l'être avant de pousser (voir « Tester »). Une ISO ratée coûte 1 h de CI.
 - Hooks live-build : `#!/bin/sh` compatible **dash**, `set -e`, `DEBIAN_FRONTEND=noninteractive`.
 - Paquets dans `config/packages.chroot` : nommés `nom_version_arch.deb`, sinon live-build les ignore.
+
+## LiberNT et NounoursNT (marque : à respecter strictement)
+
+- LiberNT (https://github.com/LiberNT/LiberNT) est un **système d'exploitation complet** (branche de ReactOS),
+  pas un noyau Linux : il ne peut pas servir de noyau à NounoursOS.
+- **Dans NounoursOS NT** : `nounoursos-libernt` télécharge l'image **officielle, non modifiée** et la démarre
+  dans QEMU (q35 + UEFI/OVMF + xHCI ; IDE ou USB 2 font planter les versions Debug). Autorisé par la politique
+  de marque (redistribution inchangée + usage référentiel du nom). Ne pas utiliser ni redessiner leur logo.
+- **NounoursNT** : version modifiée, donc **jamais appelée LiberNT et sans son logo** (le logo n'est pas sous
+  GPL). `nounoursnt/rebaptiser.py` renomme seulement les textes affichés (jamais les commentaires/copyrights,
+  ni les chemins internes comme `EFI\LiberNT\Boot`), régénère les images de marque (même taille, format,
+  palette, masque) et ajoute l'attribution « basé sur les sources de LiberNT ». Si le script signale des
+  « Introuvables », le code de LiberNT a changé : mettre à jour `EXPLICITES`.
+- Construction : workflow `nounoursnt.yml` (RosBE, Clang amd64 Debug, test QEMU, Release `nounoursnt-…`).
+  Test de LiberNT officiel : `tester-libernt.yml` (captures d'écran par profil QEMU).
 
 ## Organisation
 
@@ -85,7 +101,13 @@ Applications PyQt6 : `iso/desktop/includes.chroot/usr/lib/nounoursos/python/noun
 - [x] Mises à jour : recherche fiable (pkexec sans mot de passe, délais bornés, erreurs expliquées)
 - [x] Capsule temporelle, recherche Alt+Espace (module KRunner D-Bus), Mode jeu, Téléphone, Nettoyage
 
+### Fait (LiberNT / NounoursNT)
+- [x] LiberNT dans NounoursOS NT (image officielle dans QEMU, section Paramètres, entrée de menu)
+- [x] NounoursNT : rebaptême (textes + images), workflow de construction et de publication
+
 ### À faire
+- [ ] NounoursNT : vérifier les captures du test QEMU de chaque construction ; remplacer aussi les écrans
+      de l'installateur texte et le fond d'écran par défaut si l'identité doit aller plus loin
 - [ ] Tester les ISO 1.3 en VM : connexion SDDM, Capsule sur disque USB, recherche, NT (`/dev/ntsync`, un `.exe`)
 - [ ] Reconnaissance du visage (attendre un Howdy empaqueté pour Debian 13)
 - [ ] NT : Wine avec ntsync, un préfixe par programme, raccourcis automatiques dans le menu
