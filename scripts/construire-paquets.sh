@@ -189,6 +189,10 @@ take "$P" "$D" "usr/share/sounds/nounoursos"
 take "$P" "$D" "usr/share/grub/themes/nounoursos"
 take "$P" "$D" "usr/share/nounoursos/icones"
 take "$P" "$D" "usr/lib/systemd/system/nounoursos-*.service"
+take "$P" "$D" "usr/lib/systemd/user/nounoursos-*"
+take "$P" "$D" "usr/share/krunner/dbusplugins/nounoursos-*"
+take "$P" "$D" "usr/share/dbus-1/services/fr.nounourscorp.*"
+take "$P" "$D" "etc/xdg/krunnerrc"
 take "$P" "$C" "usr/share/icons/hicolor/*/apps/nounoursos.*"
 take "$P" "$C" "usr/share/nounoursos/logo*"
 take "$P" "$C" "usr/share/nounoursos/grub-background.png"
@@ -211,7 +215,7 @@ Maintainer: ${MAINTAINER}
 Installed-Size: @SIZE@
 Section: x11
 Priority: optional
-Depends: nounoursos-release, python3, python3-pyqt6, packagekit, packagekit-tools, kdialog, plasma-workspace${DESK_DEPS_EXTRA}
+Depends: nounoursos-release, python3, python3-pyqt6, packagekit, packagekit-tools, kdialog, plasma-workspace, rsync, python3-dbus, python3-gi${DESK_DEPS_EXTRA}
 Recommends: unattended-upgrades, pciutils, xdg-user-dirs, kde-cli-tools,
  winboat, docker.io, docker-compose, freerdp3-x11, nounours-launcher, nounours-browser,
  flatpak, plasma-discover-backend-flatpak, swayidle, fprintd, libpam-fprintd, fonts-inter,
@@ -230,6 +234,8 @@ if [ "$1" = "configure" ]; then
   # « Redémarrer et mettre à jour » : service d'installation au démarrage
   if [ -d /run/systemd/system ]; then systemctl daemon-reload || true; fi
   systemctl enable nounoursos-maj-demarrage.service >/dev/null 2>&1 || true
+  # Capsule temporelle : minuteur prêt pour chaque compte (il ne fait rien tant qu'elle est désactivée)
+  systemctl --global enable nounoursos-capsule.timer >/dev/null 2>&1 || true
   # Identité NounoursOS : polices Inter pour le menu de démarrage
   T=/usr/share/grub/themes/nounoursos; F=/usr/share/fonts/opentype/inter
   if command -v grub-mkfont >/dev/null && [ -f "$F/Inter-Regular.otf" ] && [ -d "$T" ]; then

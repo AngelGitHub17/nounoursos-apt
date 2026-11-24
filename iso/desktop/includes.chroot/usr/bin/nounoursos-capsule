@@ -1,0 +1,40 @@
+#!/usr/bin/python3
+"""Capsule temporelle NounoursOS (service) : nounoursos-capsule sauvegarder [--auto] | liste"""
+import os
+import subprocess
+import sys
+sys.path.insert(0, os.environ.get("NOUNOURSOS_PY", "/usr/lib/nounoursos/python"))
+from nounoursui import capsule as C
+
+
+def notifier(titre, texte):
+    try:
+        subprocess.run(["notify-send", "-a", "Capsule temporelle", "-i", "nounoursos", titre, texte], timeout=5)
+    except Exception:
+        pass
+
+
+def main(argv):
+    cmd = argv[1] if len(argv) > 1 else "sauvegarder"
+    if cmd == "liste":
+        for t, chemin in C.liste():
+            print(C.libelle(t), chemin)
+        return 0
+    if cmd == "sauvegarder":
+        auto = "--auto" in argv
+        avant = C.lire_etat()
+        ok, msg = C.sauvegarder(auto=auto)
+        print(msg)
+        if auto and not ok:
+            notifier("La sauvegarde n'a pas pu être faite", msg)
+        elif auto and ok and avant.get("ok") is False and C.lire_etat().get("ok"):
+            notifier("Capsule temporelle", "Les sauvegardes fonctionnent à nouveau.")
+        elif auto and ok and not avant.get("derniere") and C.lire_etat().get("derniere"):
+            notifier("Première sauvegarde terminée",
+                     "Vos fichiers sont maintenant sauvegardés toutes les heures.")
+        return 0 if ok else 1
+    print(__doc__)
+    return 2
+
+
+sys.exit(main(sys.argv))

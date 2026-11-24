@@ -26,12 +26,17 @@ Légende : ✅ fait · 🔜 prochaine version · 💡 idée à creuser
 - 6 teintes (schémas KDE clair/sombre + fonds assortis), fond d'écran animé QML
 - Paramètres tout-en-un (pont KCM), icônes NounoursOS, mises à jour par APT (pkexec)
 
-## 1.3 🔜 — Confort façon macOS
+## 1.3 « Origami » ✅
+
+- Nouvelle identité : ourson origami, fonds à facettes, police Inter, écran de connexion SDDM, écran de chargement, Plymouth, GRUB, installateur
+- Mises à jour : recherche via `nounoursos-maj-recherche` (pkexec sans mot de passe), bornée et expliquée
+- Capsule temporelle (rsync + liens durs, rétention façon Time Machine), recherche `Alt+Espace` avec réglages et actions, Mode jeu, Téléphone (KDE Connect), Nettoyage
+
+## 1.4 🔜 — Confort façon macOS
 
 | Fonction | Détail |
 |---|---|
-| **Capsule temporelle** (sauvegarde) | Instantanés automatiques du système (Btrfs + Snapper, ou Timeshift) et retour en arrière depuis Paramètres et le menu de démarrage |
-| **Recherche « Spotlight »** | `Alt+Espace` : KRunner restylé NounoursOS (applis, fichiers, calculs, réglages) |
+| **Instantanés du système** | Btrfs + Snapper : revenir en arrière après une mise à jour ratée, depuis le menu de démarrage |
 | **Centre de contrôle** | Panneau de réglages rapides (Wi-Fi, son, luminosité, Ne pas déranger) dans la barre |
 | **Compte NounoursAccount** | Connexion avec NounoursAccount dans l'assistant de bienvenue (photo, nom, préférences synchronisées) |
 | **Kit streamer** | Option dans l'assistant : OBS Studio préconfiguré (multistream Twitch / YouTube / Kick) |

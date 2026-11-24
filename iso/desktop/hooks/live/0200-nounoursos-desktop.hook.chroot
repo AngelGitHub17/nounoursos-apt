@@ -47,6 +47,9 @@ if command -v grub-mkfont >/dev/null && [ -f "$F/Inter-Regular.otf" ]; then
 fi
 ls "$T"/*.pf2 2>/dev/null || echo "(polices GRUB non générées : police par défaut utilisée)"
 
+echo "[NounoursOS] Capsule temporelle : minuteur pour chaque compte"
+systemctl --global enable nounoursos-capsule.timer || true
+
 echo "[NounoursOS] Empreinte digitale : acceptée pour sudo, polkit et la connexion"
 pam-auth-update --package --enable fprintd || true
 

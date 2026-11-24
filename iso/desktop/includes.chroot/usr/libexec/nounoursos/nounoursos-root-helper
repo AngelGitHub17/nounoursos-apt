@@ -26,6 +26,31 @@ CONF
       *) echo "usage: empreinte-pam on|off" >&2; exit 2 ;;
     esac
     ;;
+  mode-jeu)
+    # Steam, GameMode, Vulkan 32 bits et, si besoin, le pilote NVIDIA (dépôts contrib/non-free)
+    export DEBIAN_FRONTEND=noninteractive
+    mkdir -p /var/log/nounoursos
+    OPTS="-y -q -o DPkg::Lock::Timeout=300 -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold -o APT::Status-Fd=1"
+    {
+      echo "=== $(date '+%F %T') : mode-jeu"
+      dpkg --add-architecture i386
+      apt-get -q -o DPkg::Lock::Timeout=300 update
+      PAQUETS="steam-installer gamemode mesa-vulkan-drivers mesa-vulkan-drivers:i386 libgl1-mesa-dri:i386 libglx-mesa0:i386"
+      if lspci 2>/dev/null | grep -qiE 'VGA.*NVIDIA|3D.*NVIDIA'; then
+        PAQUETS="$PAQUETS nvidia-driver firmware-misc-nonfree nvidia-driver-libs:i386"
+      fi
+      apt-get $OPTS install $PAQUETS
+    } 2>&1 | tee -a /var/log/nounoursos/mode-jeu.log
+    exit "${PIPESTATUS[0]:-0}"
+    ;;
+  nettoyage-systeme)
+    # Paquets téléchargés, paquets devenus inutiles, anciens journaux, applis Flatpak orphelines
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get -q clean
+    apt-get -y -q -o DPkg::Lock::Timeout=120 autoremove --purge
+    journalctl --vacuum-size=200M >/dev/null 2>&1 || true
+    command -v flatpak >/dev/null && flatpak uninstall --system --unused -y --noninteractive >/dev/null 2>&1 || true
+    ;;
   maj-maintenant|maj-preparer)
     # Mise à jour avec APT (plus fiable que PackageKit pour les paquets NounoursOS) :
     # pas de question de configuration, attente si un autre outil tient le verrou,

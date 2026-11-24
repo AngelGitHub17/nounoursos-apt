@@ -73,3 +73,11 @@ qml6-module-org-kde-ksysguard
 
 # Identité NounoursOS : police Inter
 fonts-inter
+
+# Capsule temporelle, recherche NounoursOS
+rsync
+python3-dbus
+python3-gi
+# Téléphone (iPhone / Android) et exploration du disque
+kdeconnect
+filelight

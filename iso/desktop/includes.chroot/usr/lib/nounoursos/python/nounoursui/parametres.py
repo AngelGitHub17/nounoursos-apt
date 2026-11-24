@@ -8,12 +8,13 @@
 """
 import glob
 import os
+import time
 import re
 import shutil
 import socket
 import sys
 
-from PyQt6.QtCore import Qt, QSize, QRectF, QTimer, QFileSystemWatcher
+from PyQt6.QtCore import Qt, QSize, QRectF, QTimer, QFileSystemWatcher, QThread, pyqtSignal
 from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor, QFont
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
                              QListWidget, QListWidgetItem, QStackedWidget, QLineEdit, QLabel,
@@ -23,7 +24,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QHBoxLayout, QV
 from . import (label, button, Card, SettingRow, Toggle, ChoiceCard, Swatch, tile_icon,
                logo_pixmap, colors, stylesheet, run, spawn, has, open_kcm, root_helper,
                user_info, os_release, read_conf, write_conf, apply_color_scheme, apply_accent, fond_anime, teinte_de,
-               plasma_script, plasma_query, is_dark, ACCENTS, HONEY, LNF, WALLPAPERS, DEMO, CONFIG_DIR, DATA)
+               plasma_script, plasma_query, is_dark, ACCENTS, HONEY, LNF, WALLPAPERS, DEMO, CONFIG_DIR, DATA, HELPER)
 from . import updates as U
 from . import kcm as K
 from .maj import CheckThread
@@ -43,10 +44,18 @@ SECTIONS = [
       "kcm_notifications", "", "ne pas deranger alertes"),
      ("son", "Son", "preferences-desktop-sound", RED, "S", None, "", "volume haut-parleur micro audio")],
     [("maj", "Mise à jour", "system-software-update", GREY, "M", None, "", "mises a jour version securite"),
+     ("capsule", "Capsule temporelle", "backup|document-save", TEAL, "C", None, "",
+      "sauvegarde backup time machine restaurer disque externe fichiers perdus"),
      ("apropos", "À propos", "hwinfo|computer|help-about", GREY, "i", None, "",
       "version systeme info materiel"),
      ("windows", "Applications Windows", "winboat|computer", "#2F6FDB", "⊞", None, "",
-      "winboat windows exe logiciels office photoshop")],
+      "winboat windows exe logiciels office photoshop"),
+     ("jeu", "Mode jeu", "input-gaming|applications-games", GREEN, "J", None, "",
+      "jeux steam gamemode proton pilote nvidia vulkan manette"),
+     ("telephone", "Téléphone", "kdeconnect|smartphone|phone", GREEN, "T", "kcm_kdeconnect", "",
+      "iphone android kde connect sms notifications fichiers partage"),
+     ("nettoyage", "Nettoyage", "edit-clear-all|user-trash-full", TEAL, "N", None, "",
+      "espace disque plein libérer cache corbeille stockage")],
     [("apparence", "Apparence", "preferences-desktop-theme-global", "#3B2A4F", "A", None, "",
       "theme sombre clair couleur accent"),
      ("bureau", "Bureau et Dock", "preferences-desktop", "#3B2A4F", "D", None, "",
@@ -427,6 +436,16 @@ class Settings(QMainWindow):
             it.setHidden(bool(t) and t_norm not in hay and key != "tous")
         if hasattr(self, "tous_filtre"):
             self.tous_filtre.setText(text)
+
+    def open_page(self, key):
+        """Reconstruit une page (après un changement qui modifie son contenu) et l'affiche."""
+        old = self.pages.pop(key, None)
+        if old is not None:
+            self.stack.removeWidget(old)
+            old.deleteLater()
+        self.pages[key] = self.build(key)
+        self.stack.addWidget(self.pages[key])
+        self.stack.setCurrentWidget(self.pages[key])
 
     def select(self, key):
         for i in range(self.list.count()):
@@ -927,6 +946,357 @@ class Settings(QMainWindow):
             self.maj_title.setText("NounoursOS est à jour")
             self.maj_sub.setText(f"NounoursOS {rel.get('VERSION_ID', '')} « {rel.get('NOUNOURSOS_CODENAME', '')} »")
             self.maj_btn.setText("Rechercher des mises à jour")
+
+    # Mode jeu ----------------------------------------------------------------------------
+    def page_jeu(self):
+        from PyQt6.QtWidgets import QProgressBar
+        pg = page("Mode jeu", "Steam, les jeux Windows grâce à Proton, et un ordinateur qui donne tout "
+                              "pendant que vous jouez.")
+        gpu = "AMD Radeon RX 6600" if DEMO else ""
+        if not DEMO:
+            for line in run(["lspci"], timeout=5).splitlines():
+                if re.search(r"VGA|3D|Display", line):
+                    gpu = line.split(": ", 1)[-1]
+                    gpu = re.sub(r"\s*\(rev .*\)$", "", gpu)
+                    break
+        nvidia = "nvidia" in gpu.lower()
+        verifs = [
+            ("Steam", DEMO or bool(shutil.which("steam")), "Installé" if DEMO or shutil.which("steam")
+             else "Pas encore installé"),
+            ("GameMode", DEMO or bool(shutil.which("gamemoded")),
+             "Donne la priorité au jeu pendant qu'il tourne"),
+            ("Jeux 32 bits (Vulkan)", DEMO or os.path.exists("/usr/lib/i386-linux-gnu/libvulkan.so.1"),
+             "Nécessaire à beaucoup de jeux Windows"),
+            ("Carte graphique", True, gpu or "Inconnue"),
+        ]
+        if nvidia:
+            verifs.append(("Pilote NVIDIA", bool(shutil.which("nvidia-smi")), "Pilote officiel, plus rapide"))
+        if os.path.exists("/dev/ntsync") or DEMO:
+            verifs.append(("Synchronisation NT (ntsync)", True, "Proton l'utilise : jeux Windows plus fluides"))
+        card = Card()
+        for titre, ok, detail in verifs:
+            m = label("✅" if ok else "⚠️")
+            m.setStyleSheet("font-size: 13pt;")
+            card.add(SettingRow(titre, detail, m))
+        pg.body.addWidget(card)
+        manque = [t for t, ok, _ in verifs if not ok]
+        row = QHBoxLayout()
+        if manque:
+            self.jeu_btn = button("Installer le mode jeu", "primary", None)
+            self.jeu_btn.clicked.connect(self._installer_jeu)
+            row.addWidget(self.jeu_btn)
+        if DEMO or shutil.which("steam"):
+            row.addWidget(button("Ouvrir Steam", None if manque else "primary", lambda: spawn(["steam"])))
+        row.addStretch()
+        w = QWidget()
+        w.setLayout(row)
+        pg.body.addWidget(w)
+        self.jeu_prog = QProgressBar()
+        self.jeu_prog.setRange(0, 100)
+        self.jeu_prog.hide()
+        pg.body.addWidget(self.jeu_prog)
+        self.jeu_msg = label(
+            "Un clic installe Steam, GameMode et les bibliothèques des jeux (environ 1 Go)"
+            + (", ainsi que le pilote NVIDIA." if nvidia else ".") if manque else
+            "Pour les jeux Windows, activez Proton dans Steam › Paramètres › Compatibilité. Astuce : "
+            "ajoutez « gamemoderun %command% » aux options de lancement d'un jeu.", "sub", wrap=True)
+        pg.body.addWidget(self.jeu_msg)
+        return finish(pg)
+
+    def _installer_jeu(self):
+        from PyQt6.QtCore import QProcess
+        self.jeu_btn.setEnabled(False)
+        self.jeu_prog.setValue(0)
+        self.jeu_prog.show()
+        self.jeu_msg.setText("Installation… (environ 1 Go à télécharger)")
+        proc = QProcess(self)
+        self._jeu_proc = proc
+
+        def lire():
+            for line in bytes(proc.readAllStandardOutput()).decode(errors="ignore").splitlines():
+                parts = line.split(":")
+                if line.startswith("dlstatus:") and len(parts) > 2:
+                    self.jeu_prog.setValue(int(float(parts[2]) * 0.4))
+                    self.jeu_msg.setText("Téléchargement…")
+                elif line.startswith("pmstatus:") and len(parts) > 2:
+                    self.jeu_prog.setValue(40 + int(float(parts[2]) * 0.6))
+                    self.jeu_msg.setText("Installation de " + parts[1] + "…")
+
+        def fini(code, _st):
+            self.jeu_prog.hide()
+            if code == 0:
+                self.jeu_msg.setText("Mode jeu installé. Bon jeu !")
+                self.open_page("jeu")
+            else:
+                self.jeu_btn.setEnabled(True)
+                self.jeu_msg.setText("L'installation n'a pas abouti (journal : /var/log/nounoursos/mode-jeu.log).")
+        proc.readyReadStandardOutput.connect(lire)
+        proc.finished.connect(fini)
+        proc.start("pkexec", [HELPER, "mode-jeu"])
+
+    # Nettoyage --------------------------------------------------------------------------
+    GARDER_CACHE = ("nounoursos", "fontconfig", "ksycoca6", "plasmashell", "kwin", "plasma_theme")
+
+    def _taille(self, chemin):
+        total = 0
+        for racine, _d, fichiers in os.walk(chemin):
+            for f in fichiers:
+                try:
+                    total += os.lstat(os.path.join(racine, f)).st_size
+                except OSError:
+                    pass
+        return total
+
+    def page_nettoyage(self):
+        pg = page("Nettoyage", "Libérez de la place sans toucher à vos documents.")
+        home = os.path.expanduser("~")
+        du = shutil.disk_usage(home)
+        g = 2 ** 30
+        card = Card(margins=(18, 14, 18, 16))
+        barre = QWidget()
+        v = QVBoxLayout(barre)
+        v.setContentsMargins(0, 0, 0, 0)
+        utilise = (du.total - du.free) / du.total if du.total else 0
+        v.addWidget(label(f"{du.free / g:.0f} Go libres sur {du.total / g:.0f} Go", "h2"))
+        from PyQt6.QtWidgets import QProgressBar
+        b = QProgressBar()
+        b.setRange(0, 1000)
+        b.setValue(int(utilise * 1000))
+        b.setTextVisible(False)
+        v.addWidget(b)
+        card.add(barre)
+        pg.body.addWidget(card)
+
+        cache = os.path.join(home, ".cache")
+        corbeille = os.path.join(home, ".local/share/Trash")
+        if DEMO:
+            tailles = {"cache": 2.4 * g, "corbeille": 860 * 2 ** 20, "apt": 1.1 * g, "journal": 412 * 2 ** 20}
+        else:
+            tailles = {
+                "cache": sum(self._taille(os.path.join(cache, n)) for n in os.listdir(cache)
+                             if n not in self.GARDER_CACHE) if os.path.isdir(cache) else 0,
+                "corbeille": self._taille(corbeille),
+                "apt": self._taille("/var/cache/apt/archives"),
+                "journal": 0,
+            }
+            m = re.search(r"take up ([\d.]+)([KMGT])", run(["journalctl", "--disk-usage"], timeout=10))
+            if m:
+                tailles["journal"] = float(m.group(1)) * {"K": 2 ** 10, "M": 2 ** 20, "G": g, "T": 2 ** 40}[m.group(2)]
+
+        def taille_txt(n):
+            return f"{n / g:.1f} Go".replace(".", ",") if n >= g / 2 else f"{n / 2 ** 20:.0f} Mo"
+
+        pg.body.addWidget(label("CE QUI PEUT PARTIR", "section"))
+        lst = Card()
+        self.net_lignes = {}
+        for cle, titre, detail in (
+                ("corbeille", "Corbeille", "Les fichiers que vous avez supprimés"),
+                ("cache", "Caches des applications", "Miniatures, caches du navigateur… recréés au besoin"),
+                ("apt", "Paquets téléchargés", "Restes des mises à jour, plus utiles une fois installés"),
+                ("journal", "Anciens journaux du système", "On garde les 200 Mo les plus récents")):
+            bt = button(f"Libérer {taille_txt(tailles[cle])}", None, None)
+            bt.setEnabled(tailles[cle] > 1024 * 1024)
+            bt.clicked.connect(lambda _=False, c=cle, bt=bt: self._nettoyer(c, bt))
+            self.net_lignes[cle] = bt
+            lst.add(SettingRow(titre, detail, bt))
+        pg.body.addWidget(lst)
+        self.net_msg = label("Les paquets et les journaux demandent le mot de passe administrateur une fois.",
+                             "sub", wrap=True)
+        pg.body.addWidget(self.net_msg)
+        gros = SettingRow("Voir ce qui prend de la place", "Explorer le disque dossier par dossier", None,
+                          chevron=True)
+        gros.clicked.connect(lambda: spawn(["filelight", home] if shutil.which("filelight")
+                                           else ["dolphin", home]))
+        c2 = Card()
+        c2.add(gros)
+        pg.body.addWidget(c2)
+        return finish(pg)
+
+    def _nettoyer(self, cle, bouton):
+        home = os.path.expanduser("~")
+        if DEMO:
+            bouton.setText("Fait ✓")
+            bouton.setEnabled(False)
+            return
+        if cle == "corbeille":
+            for sous in ("files", "info", "expunged"):
+                d = os.path.join(home, ".local/share/Trash", sous)
+                if os.path.isdir(d):
+                    for n in os.listdir(d):
+                        p = os.path.join(d, n)
+                        shutil.rmtree(p, ignore_errors=True) if os.path.isdir(p) and not os.path.islink(p) \
+                            else os.unlink(p)
+        elif cle == "cache":
+            cache = os.path.join(home, ".cache")
+            for n in os.listdir(cache):
+                if n in self.GARDER_CACHE:
+                    continue
+                p = os.path.join(cache, n)
+                try:
+                    shutil.rmtree(p) if os.path.isdir(p) and not os.path.islink(p) else os.unlink(p)
+                except OSError:
+                    pass
+        else:
+            if not root_helper("nettoyage-systeme"):
+                self.net_msg.setText("Nettoyage annulé.")
+                return
+            for c in ("apt", "journal"):
+                self.net_lignes[c].setText("Fait ✓")
+                self.net_lignes[c].setEnabled(False)
+        bouton.setText("Fait ✓")
+        bouton.setEnabled(False)
+
+    # Capsule temporelle ----------------------------------------------------------------
+    def page_capsule(self):
+        from . import capsule as C
+        from PyQt6.QtWidgets import QProgressBar, QFileDialog
+        pg = page("Capsule temporelle",
+                  "Une sauvegarde de vos fichiers toutes les heures. Un fichier supprimé ou abîmé ? "
+                  "Retrouvez-le tel qu'il était hier, la semaine dernière ou le mois dernier.")
+        conf = C.lire_conf()
+        etat = C.lire_etat()
+        dest = conf.get("destination", "")
+        snaps = C.liste(dest) if not DEMO else [(time.time() - h * 3600, f"/media/demo/{h}")
+                                                  for h in (0, 1, 2, 26, 50, 24 * 9)]
+
+        # État
+        card = Card()
+        if DEMO:
+            etat = {"derniere": time.time() - 1500, "ok": True}
+            dest = dest or "/media/nounours/Sauvegardes"
+        if etat.get("ok") is False and etat.get("message"):
+            txt = etat["message"]
+        elif etat.get("derniere"):
+            txt = "Dernière sauvegarde : " + C.libelle(etat["derniere"])
+        else:
+            txt = "Aucune sauvegarde pour le moment."
+        self.caps_etat = SettingRow("Sauvegarder automatiquement", txt,
+                                    Toggle(conf.get("active") == "true" or DEMO), real_icon("", 30, key="capsule"))
+        auto = self.caps_etat.findChild(Toggle)
+
+        def basculer(on):
+            if on and not (dest or C.lire_conf().get("destination")):
+                auto.blockSignals(True)
+                auto.setChecked(False)
+                auto.blockSignals(False)
+                self.caps_msg.setText("Choisissez d'abord un disque ci-dessous.")
+                return
+            C.ecrire_conf(active=str(on).lower())
+            spawn(["systemctl", "--user", "enable" if on else "disable", "--now", "nounoursos-capsule.timer"])
+        auto.toggled.connect(basculer)
+        card.add(self.caps_etat)
+        pg.body.addWidget(card)
+
+        # Sauvegarder maintenant
+        row = QHBoxLayout()
+        self.caps_btn = button("Sauvegarder maintenant", "primary", None)
+        self.caps_btn.setEnabled(bool(dest))
+        row.addWidget(self.caps_btn)
+        self.caps_prog = QProgressBar()
+        self.caps_prog.setRange(0, 100)
+        self.caps_prog.setMaximumWidth(260)
+        self.caps_prog.hide()
+        row.addWidget(self.caps_prog)
+        self.caps_msg = label("", "sub")
+        row.addWidget(self.caps_msg, 1)
+        w = QWidget()
+        w.setLayout(row)
+        pg.body.addWidget(w)
+        self.caps_btn.clicked.connect(self._capsule_maintenant)
+
+        # Disque
+        pg.body.addWidget(label("DISQUE DE SAUVEGARDE", "section"))
+        dcard = Card()
+        disques = C.disques_externes() if not DEMO else [("Sauvegardes", "/media/nounours/Sauvegardes",
+                                                            412 * 2 ** 30, 1000 * 2 ** 30)]
+        for nom, chemin, libre, total in disques:
+            actuel = os.path.realpath(chemin) == os.path.realpath(dest) if dest else False
+            choisir = label("✓ Utilisé", "sub") if actuel else button("Utiliser", None, None)
+            if not actuel:
+                choisir.clicked.connect(lambda _=False, c=chemin: self._capsule_destination(c))
+            dcard.add(SettingRow(nom, f"{libre / 2 ** 30:.0f} Go libres sur {total / 2 ** 30:.0f} Go",
+                                 choisir, real_icon("", 26, key="disques")))
+        if not disques:
+            dcard.add(SettingRow("Aucun disque externe branché",
+                                 "Branchez un disque USB, il apparaîtra ici. Vous pouvez aussi choisir un dossier.",
+                                 None))
+        autre = SettingRow("Choisir un dossier…", dest if dest and not any(
+            os.path.realpath(c) == os.path.realpath(dest) for _, c, _, _ in disques) else
+            "Un disque réseau, une deuxième partition…", None, chevron=True)
+        autre.clicked.connect(lambda: (lambda d: d and self._capsule_destination(d))(
+            QFileDialog.getExistingDirectory(self, "Dossier de sauvegarde", "/media")))
+        dcard.add(autre)
+        pg.body.addWidget(dcard)
+        if dest and not DEMO and os.path.isdir(dest):
+            home_dev = os.stat(os.path.expanduser("~")).st_dev
+            if os.stat(dest).st_dev == home_dev:
+                pg.body.addWidget(label("⚠️ Ce dossier est sur le même disque que vos fichiers : il protège des "
+                                        "erreurs, mais pas d'une panne du disque. Un disque externe est conseillé.",
+                                        "sub", wrap=True))
+            elif not C.liens_durs_possibles(C.dossier_capsule(dest)) if os.path.isdir(C.dossier_capsule(dest)) \
+                    else False:
+                pg.body.addWidget(label("⚠️ Ce disque est formaté en FAT/exFAT : chaque sauvegarde sera "
+                                        "complète et prendra beaucoup de place. Le format ext4 est conseillé.",
+                                        "sub", wrap=True))
+
+        # Instantanés
+        if snaps:
+            pg.body.addWidget(label("RETROUVER UN FICHIER", "section"))
+            lcard = Card()
+            for t, chemin in snaps[:30]:
+                bx = QWidget()
+                h = QHBoxLayout(bx)
+                h.setContentsMargins(0, 0, 0, 0)
+                h.addWidget(button("Parcourir", "link", lambda _=False, c=chemin: spawn(["xdg-open", c])))
+                h.addWidget(button("Tout récupérer…", None, lambda _=False, c=chemin, t=t: self._capsule_restaurer(c, t)))
+                lcard.add(SettingRow(C.libelle(t), None, bx))
+            pg.body.addWidget(lcard)
+            pg.body.addWidget(label("« Parcourir » ouvre la sauvegarde comme un dossier normal : copiez-en ce dont "
+                                    "vous avez besoin. « Tout récupérer » la copie dans un nouveau dossier, sans "
+                                    "toucher à vos fichiers actuels.", "sub", wrap=True))
+        return finish(pg)
+
+    def _capsule_destination(self, chemin):
+        from . import capsule as C
+        C.ecrire_conf(destination=chemin, active="true")
+        spawn(["systemctl", "--user", "enable", "--now", "nounoursos-capsule.timer"])
+        self.open_page("capsule")
+
+    def _capsule_maintenant(self):
+        from . import capsule as C
+
+        class Fil(QThread):
+            avance = pyqtSignal(int)
+            fini = pyqtSignal(bool, str)
+
+            def run(self):
+                ok, msg = C.sauvegarder(progression=self.avance.emit, journal=lambda m: None)
+                self.fini.emit(ok, msg)
+        self.caps_btn.setEnabled(False)
+        self.caps_prog.setValue(0)
+        self.caps_prog.show()
+        self.caps_msg.setText("Sauvegarde en cours… vous pouvez continuer à travailler.")
+        self._caps_fil = Fil()
+        self._caps_fil.avance.connect(self.caps_prog.setValue)
+        self._caps_fil.fini.connect(lambda ok, msg: (self.caps_prog.hide(), self.caps_btn.setEnabled(True),
+                                                      self.caps_msg.setText(msg), ok and self.open_page("capsule")))
+        self._caps_fil.start()
+
+    def _capsule_restaurer(self, chemin, t):
+        from . import capsule as C
+        cible = os.path.join(os.path.expanduser("~"), time.strftime("Récupéré du %d-%m-%Y à %Hh%M", time.localtime(t)))
+        self.caps_msg.setText("Récupération en cours…")
+
+        class Fil(QThread):
+            fini = pyqtSignal(bool)
+
+            def run(self):
+                self.fini.emit(C.restaurer(chemin, cible))
+        self._caps_rest = Fil()
+        self._caps_rest.fini.connect(lambda ok: (self.caps_msg.setText(
+            f"Fichiers récupérés dans « {os.path.basename(cible)} »." if ok else "La récupération a échoué."),
+            ok and spawn(["xdg-open", cible])))
+        self._caps_rest.start()
 
     # Empreinte et visage ------------------------------------------------------------
     DOIGTS = [("right-index-finger", "Index droit"), ("right-middle-finger", "Majeur droit"),

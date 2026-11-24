@@ -8,7 +8,7 @@ Distribution Linux de **NounoursCorp**, basée sur **Debian 13 « Trixie »**.
 | **NounoursOS NT** (`nt`) | Le bureau + couche Windows : noyau récent avec **ntsync**, **Wine**, `.exe` / `.msi` en double-clic | Calamares (graphique) |
 | **NounoursOS Server** (`server`) | Console uniquement, SSH, pare-feu ufw, fail2ban, mises à jour de sécurité automatiques | Debian-Installer (texte) |
 
-Version actuelle : **1.2 « Doudou »** (modifiable dans `VERSION`).
+Version actuelle : **1.3 « Origami »** (modifiable dans `VERSION`).
 
 ---
 

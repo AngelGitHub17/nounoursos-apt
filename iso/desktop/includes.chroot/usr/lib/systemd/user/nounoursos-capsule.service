@@ -1,0 +1,9 @@
+[Unit]
+Description=Capsule temporelle NounoursOS (sauvegarde du dossier personnel)
+ConditionPathExists=%h/.config/nounoursos/capsule.conf
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/nounoursos-capsule sauvegarder --auto
+Nice=15
+IOSchedulingClass=idle

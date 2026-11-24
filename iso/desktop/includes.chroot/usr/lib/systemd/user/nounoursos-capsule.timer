@@ -1,0 +1,11 @@
+[Unit]
+Description=Capsule temporelle NounoursOS : une sauvegarde par heure
+
+[Timer]
+OnStartupSec=10min
+OnUnitActiveSec=1h
+Persistent=true
+RandomizedDelaySec=2min
+
+[Install]
+WantedBy=timers.target

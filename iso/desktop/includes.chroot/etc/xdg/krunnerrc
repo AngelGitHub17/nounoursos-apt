@@ -1,0 +1,7 @@
+[General]
+FreeFloating=true
+ActivateWhenTypingOnDesktop=true
+historyBehavior=CompletionSuggestion
+
+[Plugins]
+nounoursos-rechercheEnabled=true

@@ -1,0 +1,110 @@
+#!/usr/bin/python3
+"""Recherche NounoursOS (Alt+Espace) : module KRunner qui trouve les réglages de
+Paramètres et propose des actions rapides (mises à jour, sauvegarde…).
+Service D-Bus fr.nounourscorp.Recherche (interface org.kde.krunner1), lancé à la demande."""
+import os
+import subprocess
+import sys
+import unicodedata
+
+import dbus
+import dbus.service
+from dbus.mainloop.glib import DBusGMainLoop
+from gi.repository import GLib
+
+sys.path.insert(0, os.environ.get("NOUNOURSOS_PY", "/usr/lib/nounoursos/python"))
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")      # on lit seulement la liste des réglages
+from nounoursui.parametres import SECTIONS  # noqa: E402
+
+IFACE = "org.kde.krunner1"
+EXACT, POSSIBLE, INFORMATIF = 100, 30, 10                 # Plasma::QueryMatch::CategoryRelevance
+
+ACTIONS = [
+    # (id, titre, icône, mots-clés, commande)
+    ("action:maj", "Rechercher des mises à jour", "system-software-update",
+     "mise a jour mettre update upgrade nouvelle version", ["nounoursos-maj"]),
+    ("action:capsule", "Sauvegarder maintenant (Capsule temporelle)", "backup",
+     "sauvegarde sauvegarder backup capsule time machine", ["nounoursos-parametres", "capsule"]),
+    ("action:veille", "Lancer l'écran de veille", "preferences-desktop-screensaver",
+     "ecran de veille economiseur horloge", ["nounoursos-veille", "--fenetre"]),
+    ("action:bienvenue", "Rouvrir l'assistant de bienvenue", "nounoursos",
+     "assistant bienvenue configuration initiale", ["nounoursos-bienvenue", "--assistant"]),
+]
+
+
+def norm(t):
+    """Minuscules, sans accents ni tirets : « Wi-Fi » -> « wifi », « Écran » -> « ecran »."""
+    t = unicodedata.normalize("NFD", t.lower())
+    t = "".join(c for c in t if unicodedata.category(c) != "Mn")
+    return t.replace("-", "").replace("'", " ").replace("’", " ")
+
+
+def index():
+    out = []
+    for groupe in SECTIONS:
+        for key, titre, icones, _c, _g, _k, desc, mots in groupe:
+            out.append((f"reglage:{key}", titre, icones.split("|")[0], f"{titre} {mots} {desc}",
+                        ["nounoursos-parametres", key], "Réglage de NounoursOS"))
+    for aid, titre, icone, mots, cmd in ACTIONS:
+        out.append((aid, titre, icone, f"{titre} {mots}", cmd, "Action NounoursOS"))
+    return [(i, t, ic, norm(m), c, s) for i, t, ic, m, c, s in out]
+
+
+class Recherche(dbus.service.Object):
+    def __init__(self, bus):
+        super().__init__(bus, "/recherche")
+        self.entrees = index()
+        self.cmds = {e[0]: e[4] for e in self.entrees}
+
+    @dbus.service.method(IFACE, in_signature="s", out_signature="a(sssida{sv})")
+    def Match(self, requete):
+        q = norm(requete.strip())
+        if len(q) < 2:
+            return []
+        res = []
+        mots_q = q.split()
+        for mid, titre, icone, hay, _cmd, sous in self.entrees:
+            t = norm(titre)
+            mots = hay.split()
+            if t.startswith(q):
+                score, typ = 0.95, EXACT
+            elif q in t:
+                score, typ = 0.8, POSSIBLE
+            elif all(any(m.startswith(w) for m in mots) for w in mots_q):
+                score, typ = 0.6, POSSIBLE      # chaque mot tapé commence un mot-clé
+            else:
+                continue
+            res.append((mid, titre, icone, typ, score, {"subtext": sous}))
+        res.sort(key=lambda r: -r[4])
+        return dbus.Array([dbus.Struct((m, t, i, dbus.Int32(ty), dbus.Double(sc),
+                                        dbus.Dictionary(p, signature="sv")))
+                           for m, t, i, ty, sc, p in res[:8]], signature="(sssida{sv})")
+
+    @dbus.service.method(IFACE, in_signature="", out_signature="a(sss)")
+    def Actions(self):
+        return dbus.Array([], signature="(sss)")
+
+    @dbus.service.method(IFACE, in_signature="ss", out_signature="")
+    def Run(self, match_id, _action_id):
+        cmd = self.cmds.get(str(match_id))
+        if cmd:
+            try:
+                subprocess.Popen(cmd, start_new_session=True)
+            except OSError:
+                pass
+
+    @dbus.service.method(IFACE, in_signature="", out_signature="")
+    def Teardown(self):
+        pass
+
+
+def main():
+    DBusGMainLoop(set_as_default=True)
+    bus = dbus.SessionBus()
+    nom = dbus.service.BusName("fr.nounourscorp.Recherche", bus)  # noqa: F841 (garde le nom)
+    Recherche(bus)
+    GLib.MainLoop().run()
+
+
+if __name__ == "__main__":
+    main()
