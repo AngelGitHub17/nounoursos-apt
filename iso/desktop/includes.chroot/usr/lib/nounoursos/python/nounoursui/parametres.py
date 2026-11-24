@@ -1565,7 +1565,8 @@ class Settings(QMainWindow):
         pg.body.addWidget(label("LiberNT est un système d'exploitation libre compatible avec Windows, développé "
                                 "par un projet indépendant à partir de ReactOS. Il s'ouvre ici dans une fenêtre, "
                                 "sans licence Windows. Encore en développement : idéal pour essayer, pas pour "
-                                "vos logiciels importants.", "sub", wrap=True))
+                                "vos logiciels importants. S'il s'arrête sur un écran bleu au démarrage, il "
+                                "redémarre tout seul : le deuxième essai passe souvent.", "sub", wrap=True))
         card = Card()
         if info.get("pret"):
             detail = f"Version {info.get('version') or 'inconnue'} · {info.get('taille', 0) / 2 ** 30:.1f} Go"

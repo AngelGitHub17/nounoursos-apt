@@ -12,15 +12,23 @@ on:
         description: "Branche, étiquette ou commit de LiberNT"
         default: master
       publier:
-        description: "Publier une Release NounoursNT"
+        description: "Publier une Release NounoursNT (vérifier d'abord les captures du test !)"
         type: boolean
-        default: true
+        default: false
+      comparer:
+        description: "Construire aussi LiberNT non modifié, pour comparer le démarrage"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
 jobs:
   construire:
+    strategy:
+      fail-fast: false
+      matrix:
+        variante: ${{ fromJSON(inputs.comparer && '["nounoursnt","libernt"]' || '["nounoursnt"]') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 340
     steps:
@@ -58,7 +66,11 @@ jobs:
         run: |
           cd nounoursnt
           echo "LIBERNT_SHA=$(git rev-parse --short=11 HEAD)" >> "$GITHUB_ENV"
-          python3 ../nounoursos/nounoursnt/rebaptiser.py .
+          if [ "${{ matrix.variante }}" = nounoursnt ]; then
+            python3 ../nounoursos/nounoursnt/rebaptiser.py .
+          else
+            echo "LiberNT non modifié (comparaison uniquement, jamais publié)" > NOUNOURSNT.md
+          fi
 
       - name: Chaîne de compilation (RosBE)
         id: rosbe
@@ -122,7 +134,7 @@ jobs:
             -drive if=pflash,format=raw,file=/tmp/nnt/vars.fd \
             -drive if=none,id=d,format=qcow2,file=/tmp/nnt/d.qcow2 -device ide-hd,drive=d \
             -vga std -device qemu-xhci -device usb-tablet -nic user,model=e1000 \
-            -display none -monitor unix:/tmp/nnt/mon,server,nowait &
+            -display none -monitor unix:/tmp/nnt/mon,server,nowait -serial file:captures/serie.log &
           prev=0
           for t in 20 60 150; do
             sleep $((t - prev)); prev=$t
@@ -135,11 +147,11 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: captures-nounoursnt
+          name: captures-${{ matrix.variante }}
           path: captures/
 
       - name: Publier la Release
-        if: ${{ inputs.publier }}
+        if: ${{ inputs.publier && matrix.variante == 'nounoursnt' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
