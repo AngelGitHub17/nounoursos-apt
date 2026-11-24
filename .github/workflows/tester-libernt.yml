@@ -1,0 +1,43 @@
+name: Tester LiberNT (NounoursOS NT)
+
+# Vérifie que « nounoursos-libernt » télécharge l'image officielle de LiberNT et
+# qu'elle démarre dans QEMU : capture d'écran dans les artefacts du run.
+on:
+  workflow_dispatch:
+    inputs:
+      attente:
+        description: "Secondes avant la capture"
+        default: "150"
+
+jobs:
+  tester:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Activer KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm || true
+          ls -l /dev/kvm || true
+      - name: Outils
+        run: sudo apt-get update -q && sudo apt-get install -y -q qemu-system-x86 qemu-utils python3-pil
+      - name: Versions publiées de LiberNT
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/LiberNT/LiberNT/releases?per_page=3" \
+            --jq '.[] | "\(.tag_name) \(.published_at) pre=\(.prerelease)", (.assets[] | "   \(.name) \(.size/1048576|floor) Mo")'
+      - name: Télécharger
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 iso/nt/includes.chroot/usr/bin/nounoursos-libernt telecharger | grep -v '^progression:' ; python3 iso/nt/includes.chroot/usr/bin/nounoursos-libernt etat
+      - name: Démarrer et capturer l'écran
+        run: |
+          mkdir -p captures
+          python3 iso/nt/includes.chroot/usr/bin/nounoursos-libernt capture captures/libernt-1.png 60
+          python3 iso/nt/includes.chroot/usr/bin/nounoursos-libernt capture captures/libernt-2.png ${{ inputs.attente }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: captures-libernt
+          path: captures/

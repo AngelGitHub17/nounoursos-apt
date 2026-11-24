@@ -1,0 +1,201 @@
+#!/usr/bin/python3
+"""LiberNT dans NounoursOS NT : un vrai système NT libre, dans une fenêtre.
+
+LiberNT (https://github.com/LiberNT/LiberNT) est un projet indépendant, basé sur
+ReactOS. NounoursOS télécharge son image officielle telle quelle (sans modification)
+et la démarre avec QEMU.
+
+  nounoursos-libernt etat                  état en JSON
+  nounoursos-libernt telecharger           télécharge la dernière image officielle
+  nounoursos-libernt demarrer              ouvre LiberNT dans une fenêtre
+  nounoursos-libernt supprimer             efface l'image (repart de zéro)
+  nounoursos-libernt capture IMAGE.png [s] démarre sans fenêtre et prend une capture
+                                           après s secondes (tests)
+"""
+import json
+import os
+import shutil
+import socket
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.request
+import zipfile
+
+DEPOT = "LiberNT/LiberNT"
+API = f"https://api.github.com/repos/{DEPOT}/releases?per_page=15"
+DOSSIER = os.path.join(os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share")),
+                       "nounoursos", "libernt")
+DISQUE = os.path.join(DOSSIER, "libernt.qcow2")
+INFO = os.path.join(DOSSIER, "info.json")
+
+
+def dire(*a):
+    print(*a, flush=True)
+
+
+def lire_info():
+    try:
+        with open(INFO) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def _requete(url):
+    req = urllib.request.Request(url, headers={"User-Agent": "NounoursOS", "Accept": "application/vnd.github+json"})
+    tok = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+    if tok and url.startswith("https://api.github.com"):
+        req.add_header("Authorization", f"Bearer {tok}")
+    return urllib.request.urlopen(req, timeout=60)
+
+
+def derniere_image():
+    """(version, nom du fichier, url, taille) de la dernière image amd64 préinstallée."""
+    with _requete(API) as r:
+        versions = json.load(r)
+    for rel in versions:
+        assets = rel.get("assets", [])
+        # Image préinstallée (LiberNT-img-…-amd64-…zip), sinon le disque VHD
+        for prefixe in ("LiberNT-img-", "LiberNT-vhd-"):
+            for a in assets:
+                n = a["name"]
+                if n.startswith(prefixe) and "amd64" in n and n.endswith(".zip"):
+                    return rel.get("tag_name") or rel.get("name"), n, a["browser_download_url"], a["size"]
+    raise RuntimeError("Aucune image LiberNT amd64 trouvée dans les versions publiées.")
+
+
+def telecharger():
+    version, nom, url, taille = derniere_image()
+    dire(f"version:{version}")
+    dire(f"taille:{taille}")
+    os.makedirs(DOSSIER, exist_ok=True)
+    tmp = tempfile.mkdtemp(prefix="libernt-", dir=DOSSIER)
+    try:
+        zip_ = os.path.join(tmp, nom)
+        with _requete(url) as r, open(zip_, "wb") as f:
+            lu, dernier = 0, -1
+            while True:
+                bloc = r.read(1 << 20)
+                if not bloc:
+                    break
+                f.write(bloc)
+                lu += len(bloc)
+                pc = int(lu * 100 / taille) if taille else 0
+                if pc != dernier:
+                    dire(f"progression:{min(pc, 100)}")
+                    dernier = pc
+        dire("etape:Décompression…")
+        with zipfile.ZipFile(zip_) as z:
+            membres = [m for m in z.namelist() if m.lower().endswith((".img", ".vhd"))]
+            if not membres:
+                raise RuntimeError("L'archive ne contient pas d'image disque.")
+            z.extract(membres[0], tmp)
+            image = os.path.join(tmp, membres[0])
+        os.unlink(zip_)
+        dire("etape:Préparation du disque…")
+        fmt = "vpc" if image.lower().endswith(".vhd") else "raw"
+        sortie = DISQUE + ".nouveau"
+        subprocess.run(["qemu-img", "convert", "-f", fmt, "-O", "qcow2", image, sortie], check=True)
+        # Un peu de place en plus pour installer des logiciels dans LiberNT
+        subprocess.run(["qemu-img", "resize", "-q", sortie, "+8G"], check=False)
+        os.replace(sortie, DISQUE)
+        with open(INFO, "w") as f:
+            json.dump({"version": version, "fichier": nom, "date": time.time()}, f)
+        dire("termine")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def _options(fenetre=True):
+    try:
+        with open("/proc/meminfo") as f:
+            ram_mo = int(f.readline().split()[1]) // 1024
+    except OSError:
+        ram_mo = 4096
+    memoire = max(1024, min(4096, ram_mo // 4))
+    kvm = os.access("/dev/kvm", os.R_OK | os.W_OK)
+    opts = ["qemu-system-x86_64", "-name", "LiberNT", "-machine", "pc",
+            "-accel", "kvm" if kvm else "tcg", "-cpu", "host" if kvm else "max",
+            "-smp", "2", "-m", str(memoire),
+            "-drive", f"file={DISQUE},if=ide,format=qcow2",
+            "-vga", "std", "-usb", "-device", "usb-tablet",
+            "-nic", "user,model=e1000", "-rtc", "base=localtime"]
+    if fenetre:
+        opts += ["-display", "gtk,zoom-to-fit=on,show-menubar=off"]
+    return opts, kvm
+
+
+def demarrer():
+    if not os.path.exists(DISQUE):
+        dire("LiberNT n'est pas encore téléchargé : nounoursos-libernt telecharger")
+        return 1
+    opts, kvm = _options()
+    if not kvm:
+        dire("Accélération KVM indisponible : LiberNT sera lent.")
+    return subprocess.call(opts)
+
+
+def capture(png, secondes=240):
+    """Démarre sans fenêtre et enregistre l'écran (pour vérifier que LiberNT démarre)."""
+    opts, kvm = _options(fenetre=False)
+    sock = os.path.join(tempfile.gettempdir(), f"libernt-{os.getpid()}.sock")
+    p = subprocess.Popen(opts + ["-display", "none", "-monitor", f"unix:{sock},server,nowait"])
+    try:
+        time.sleep(secondes)
+        ppm = png + ".ppm"
+        s = socket.socket(socket.AF_UNIX)
+        s.connect(sock)
+        s.sendall(f"screendump {ppm}\n".encode())
+        time.sleep(3)
+        s.close()
+        try:
+            from PIL import Image
+            Image.open(ppm).save(png)
+            os.unlink(ppm)
+        except ImportError:
+            os.replace(ppm, png)
+        dire(f"capture:{png} (kvm={kvm})")
+    finally:
+        p.terminate()
+        p.wait(timeout=30)
+    return 0
+
+
+def etat():
+    info = lire_info()
+    pret = os.path.exists(DISQUE)
+    print(json.dumps({
+        "pret": pret, "version": info.get("version", ""), "date": info.get("date", 0),
+        "taille": os.path.getsize(DISQUE) if pret else 0,
+        "qemu": bool(shutil.which("qemu-system-x86_64")),
+        "kvm": os.access("/dev/kvm", os.R_OK | os.W_OK),
+    }))
+    return 0
+
+
+def main(argv):
+    cmd = argv[1] if len(argv) > 1 else "demarrer"
+    try:
+        if cmd == "etat":
+            return etat()
+        if cmd == "telecharger":
+            telecharger()
+            return 0
+        if cmd == "demarrer":
+            return demarrer()
+        if cmd == "supprimer":
+            shutil.rmtree(DOSSIER, ignore_errors=True)
+            return 0
+        if cmd == "capture" and len(argv) > 2:
+            return capture(argv[2], int(argv[3]) if len(argv) > 3 else 240)
+    except Exception as e:                       # message lisible pour Paramètres
+        dire(f"erreur:{e}")
+        return 1
+    print(__doc__)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
