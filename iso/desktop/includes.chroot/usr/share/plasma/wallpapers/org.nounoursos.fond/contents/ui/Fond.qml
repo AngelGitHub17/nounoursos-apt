@@ -9,7 +9,7 @@ Rectangle {
     property bool actif: true            // false quand une fenêtre couvre l'écran
 
     readonly property var teintes: ({
-        "Miel":      ["#C9864B", "#F3B562"],
+        "Miel":      ["#D98A3F", "#F3B562"],
         "Myrtille":  ["#3D7EDB", "#8DB8F5"],
         "Lavande":   ["#7E57C2", "#C2A8F0"],
         "Menthe":    ["#3FA36B", "#8FE0B2"],
@@ -29,8 +29,8 @@ Rectangle {
 
     gradient: Gradient {
         orientation: Gradient.Vertical
-        GradientStop { position: 0; color: "#1F1A2E" }
-        GradientStop { position: 0.6; color: "#33264A" }
+        GradientStop { position: 0; color: "#1B1329" }
+        GradientStop { position: 0.6; color: "#2B1C40" }
         GradientStop { position: 1; color: Qt.darker(fond.accent, 2.2) }
     }
 
@@ -70,17 +70,15 @@ Rectangle {
         }
     }
 
-    // Ourson (silhouette) qui respire
-    Item {
-        id: ourson
-        width: fond.height * 0.42; height: width * 0.86
-        x: fond.width * 0.68 - width / 2; y: fond.height * 0.42 - height / 2
+    // Ourson origami (identité NounoursOS) qui respire
+    Image {
+        source: Qt.resolvedUrl("../images/ourson.svg")
+        sourceSize: Qt.size(width, height)
+        width: fond.height * 0.5; height: width
+        x: fond.width * 0.68 - width / 2; y: fond.height * 0.44 - height / 2
         scale: 1 + 0.015 * Math.sin(fond.t * 0.12)
-        opacity: 0.07
-        Rectangle { width: parent.width * 0.3; height: width; radius: width / 2; color: "white"; x: 0; y: 0 }
-        Rectangle { width: parent.width * 0.3; height: width; radius: width / 2; color: "white"; x: parent.width * 0.7; y: 0 }
-        Rectangle { width: parent.width * 0.74; height: parent.height * 0.8; radius: width / 2; color: "white"
-                    x: parent.width * 0.13; y: parent.height * 0.2 }
+        opacity: 0.06
+        smooth: true
     }
 
     Behavior on accent { ColorAnimation { duration: 800 } }

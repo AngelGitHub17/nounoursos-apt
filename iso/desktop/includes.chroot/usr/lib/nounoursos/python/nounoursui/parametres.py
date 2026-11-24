@@ -127,7 +127,7 @@ class SidebarDelegate(QStyledItemDelegate):
             p.setPen(Qt.PenStyle.NoPen)
             p.drawEllipse(rect)
             p.setPen(QColor("white"))
-            f = QFont("Noto Sans", 8)
+            f = QFont("Inter", 8)
             f.setBold(True)
             p.setFont(f)
             p.drawText(rect, Qt.AlignmentFlag.AlignCenter, str(n))
@@ -190,7 +190,7 @@ def window_preview(dark, w=200, h=124):
     p = QPainter(pm)
     p.setRenderHint(QPainter.RenderHint.Antialiasing)
     p.fillRect(0, 0, w, h, QColor("#2B2238" if dark else "#E9E1D8"))
-    p.fillRect(QRectF(0, h - 18, w, 18), QColor("#1C1825" if dark else "#FFFFFF"))
+    p.fillRect(QRectF(0, h - 18, w, 18), QColor("#1B1329" if dark else "#FFFFFF"))
     win = QColor("#2A2436" if dark else "#FFFFFF")
     bar = QColor("#3A3247" if dark else "#EFE9E3")
     p.setPen(Qt.PenStyle.NoPen)
@@ -1228,11 +1228,23 @@ class Settings(QMainWindow):
         top = QVBoxLayout()
         top.setSpacing(4)
         lg = QLabel()
-        lg.setPixmap(logo_pixmap(120))
+        ban = os.path.join(DATA, "banniere.png")
+        if os.path.exists(ban):
+            pm = QPixmap(ban)
+            dpr = self.devicePixelRatioF() or 1
+            pm = pm.scaledToWidth(int(600 * dpr), Qt.TransformationMode.SmoothTransformation)
+            pm.setDevicePixelRatio(dpr)
+            lg.setPixmap(pm)
+        else:
+            lg.setPixmap(logo_pixmap(120))
         top.addWidget(lg, 0, Qt.AlignmentFlag.AlignHCenter)
-        t = label("NounoursOS", "title", align=Qt.AlignmentFlag.AlignCenter)
-        top.addWidget(t)
-        top.addWidget(label(f"Version {rel.get('VERSION_ID', '')} « {rel.get('NOUNOURSOS_CODENAME', '')} »",
+        top.addSpacing(8)
+        edition = {"nt": "NounoursOS NT", "server": "NounoursOS Server"}.get(
+            rel.get("NOUNOURSOS_EDITION", ""), "NounoursOS")
+        top.addWidget(label(f"{edition} {rel.get('VERSION_ID', '')} « {rel.get('NOUNOURSOS_CODENAME', '')} »",
+                            "h1", align=Qt.AlignmentFlag.AlignCenter))
+        top.addWidget(label(f"Basé sur Debian {rel.get('DEBIAN_CODENAME', 'trixie').capitalize()} · "
+                            f"noyau Linux {os.uname().release.split('-')[0]}",
                             "sub", align=Qt.AlignmentFlag.AlignCenter))
         w = QWidget()
         w.setLayout(top)

@@ -179,6 +179,10 @@ take "$P" "$D" "usr/share/color-schemes/NounoursOS*.colors"
 take "$P" "$D" "usr/share/plasma/plasmoids/org.nounoursos.*"
 take "$P" "$D" "usr/share/plasma/wallpapers/org.nounoursos.*"
 take "$P" "$D" "etc/nounoursos"
+take "$P" "$D" "usr/share/sddm/themes/nounoursos"
+take "$P" "$D" "etc/sddm.conf.d/10-nounoursos.conf"
+take "$P" "$C" "usr/share/nounoursos/banniere.png"
+take "$P" "$C" "usr/share/icons/hicolor/symbolic/apps/nounoursos-symbolic.svg"
 take "$P" "$D" "usr/share/nounoursos/plymouth"
 take "$P" "$D" "etc/xdg/autostart/nounoursos-*.desktop"
 take "$P" "$D" "usr/share/sounds/nounoursos"
@@ -210,7 +214,7 @@ Priority: optional
 Depends: nounoursos-release, python3, python3-pyqt6, packagekit, packagekit-tools, kdialog, plasma-workspace${DESK_DEPS_EXTRA}
 Recommends: unattended-upgrades, pciutils, xdg-user-dirs, kde-cli-tools,
  winboat, docker.io, docker-compose, freerdp3-x11, nounours-launcher, nounours-browser,
- flatpak, plasma-discover-backend-flatpak, swayidle, fprintd, libpam-fprintd,
+ flatpak, plasma-discover-backend-flatpak, swayidle, fprintd, libpam-fprintd, fonts-inter,
  ksystemstats, qml6-module-org-kde-ksysguard
 Homepage: https://nounourscorp.fr/
 Description: Bureau NounoursOS : applications, thème et fonds d'écran
@@ -226,6 +230,21 @@ if [ "$1" = "configure" ]; then
   # « Redémarrer et mettre à jour » : service d'installation au démarrage
   if [ -d /run/systemd/system ]; then systemctl daemon-reload || true; fi
   systemctl enable nounoursos-maj-demarrage.service >/dev/null 2>&1 || true
+  # Identité NounoursOS : polices Inter pour le menu de démarrage
+  T=/usr/share/grub/themes/nounoursos; F=/usr/share/fonts/opentype/inter
+  if command -v grub-mkfont >/dev/null && [ -f "$F/Inter-Regular.otf" ] && [ -d "$T" ]; then
+    grub-mkfont -s 16 -n "Inter" -o "$T/inter_16.pf2" "$F/Inter-Regular.otf" 2>/dev/null || true
+    grub-mkfont -s 16 -n "Inter Fort" -o "$T/inter_fort_16.pf2" "$F/Inter-SemiBold.otf" 2>/dev/null || true
+    grub-mkfont -s 30 -n "Inter Fort" -o "$T/inter_fort_30.pf2" "$F/Inter-Bold.otf" 2>/dev/null || true
+    if [ -d /boot/grub ] && command -v update-grub >/dev/null; then update-grub >/dev/null 2>&1 || true; fi
+  fi
+  # Écran de démarrage : nouveau logo (seulement s'il a changé)
+  P=/usr/share/plymouth/themes/nounoursos
+  if [ -d "$P" ] && ! cmp -s /usr/share/nounoursos/plymouth/watermark.png "$P/watermark.png"; then
+    cp /usr/share/nounoursos/plymouth/watermark.png "$P/watermark.png"
+    cp /usr/share/nounoursos/plymouth/nounoursos.plymouth "$P/nounoursos.plymouth"
+    if command -v update-initramfs >/dev/null && [ -d /boot ]; then update-initramfs -u >/dev/null 2>&1 || true; fi
+  fi
 fi
 exit 0
 EOF

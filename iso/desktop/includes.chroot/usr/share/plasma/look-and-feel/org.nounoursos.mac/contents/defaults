@@ -21,3 +21,7 @@ library=org.kde.breeze
 theme=Breeze
 ButtonsOnLeft=XIA
 ButtonsOnRight=
+
+[ksplashrc][KSplash]
+Engine=KSplashQML
+Theme=org.nounoursos.mac

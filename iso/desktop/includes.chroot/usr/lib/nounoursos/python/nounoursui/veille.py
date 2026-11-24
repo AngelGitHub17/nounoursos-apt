@@ -266,7 +266,7 @@ def carte(p, rect, titre):
     p.setPen(QPen(QColor(255, 255, 255, 26), 1))
     p.setBrush(Qt.BrushStyle.NoBrush)
     p.drawPath(path)
-    f = QFont("Noto Sans", 10)
+    f = QFont("Inter", 10)
     f.setBold(True)
     f.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 2)
     p.setFont(f)
@@ -345,14 +345,14 @@ class Veille(QWidget):
 
     def _horloge(self, p, W, H):
         now = QDateTime.currentDateTime()
-        f = QFont("Noto Sans", 10)
+        f = QFont("Inter", 10)
         f.setWeight(QFont.Weight.Light)
         f.setPixelSize(int(H * 0.15))
         p.setFont(f)
         p.setPen(CREME)
         p.drawText(QRectF(0, H * 0.03, W, H * 0.18), Qt.AlignmentFlag.AlignCenter,
                    now.toString("HH:mm"))
-        f2 = QFont("Noto Sans", 10)
+        f2 = QFont("Inter", 10)
         f2.setPixelSize(int(H * 0.03))
         p.setFont(f2)
         p.setPen(CREME_DOUX)
@@ -391,7 +391,7 @@ class Veille(QWidget):
         p.drawPixmap(QRectF(-size / 2, -size / 2, size, size), self.logo, QRectF(self.logo.rect()))
         p.restore()
         # texte d'état
-        f = QFont("Noto Sans", 10)
+        f = QFont("Inter", 10)
         f.setBold(True)
         f.setPixelSize(int(max(16, rayon * 0.2)))
         f.setLetterSpacing(QFont.SpacingType.AbsoluteSpacing, 3)
@@ -399,7 +399,7 @@ class Veille(QWidget):
         p.setPen(couleur)
         p.drawText(QRectF(centre.x() - 400, centre.y() + rayon * 1.32, 800, rayon * 0.22),
                    Qt.AlignmentFlag.AlignCenter, etat)
-        f2 = QFont("Noto Sans", 10)
+        f2 = QFont("Inter", 10)
         f2.setPixelSize(int(max(13, rayon * 0.14)))
         p.setFont(f2)
         p.setPen(CREME_DOUX)
@@ -417,7 +417,7 @@ class Veille(QWidget):
         if m.temp is not None:
             lignes.append(("Température", f"{m.temp:.0f} °C", m.temp / 100))
         h = zone.height() / (len(lignes) + 1)
-        f = QFont("Noto Sans", 10)
+        f = QFont("Inter", 10)
         f.setPixelSize(int(max(11, min(18, h * 0.38))))
         p.setFont(f)
         for i, (nom, val, frac) in enumerate(lignes):

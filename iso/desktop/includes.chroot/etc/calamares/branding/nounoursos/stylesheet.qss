@@ -6,14 +6,14 @@ QPushButton {
 }
 QPushButton:hover { background: #F3ECE5; }
 QPushButton:default, QPushButton#view-button-next {
-    background: #C9864B; color: white; border: none; font-weight: bold;
+    background: #D98A3F; color: white; border: none; font-weight: bold;
 }
 QPushButton:default:hover, QPushButton#view-button-next:hover { background: #B8733D; }
 QPushButton:disabled { color: #A79FB0; background: #EFE9E3; }
 QLineEdit, QComboBox {
     border: 1px solid #E6DED6; border-radius: 7px; padding: 5px 8px; background: white;
 }
-QLineEdit:focus, QComboBox:focus { border: 2px solid #C9864B; }
+QLineEdit:focus, QComboBox:focus { border: 2px solid #D98A3F; }
 QProgressBar { border: none; background: #E6DED6; border-radius: 4px; max-height: 8px; text-align: center; color: transparent; }
-QProgressBar::chunk { background: #C9864B; border-radius: 4px; }
-QCheckBox::indicator:checked, QRadioButton::indicator:checked { background: #C9864B; }
+QProgressBar::chunk { background: #D98A3F; border-radius: 4px; }
+QCheckBox::indicator:checked, QRadioButton::indicator:checked { background: #D98A3F; }

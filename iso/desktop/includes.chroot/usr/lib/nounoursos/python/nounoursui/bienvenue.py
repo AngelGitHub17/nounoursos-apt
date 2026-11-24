@@ -4,14 +4,14 @@ import subprocess
 import sys
 
 from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve, QRectF, QPointF
-from PyQt6.QtGui import QColor, QPainter, QLinearGradient, QRadialGradient, QIcon, QFont
+from PyQt6.QtGui import QColor, QPainter, QLinearGradient, QRadialGradient, QIcon, QFont, QPixmap
 from PyQt6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QGridLayout,
                              QStackedWidget, QFrame, QGraphicsDropShadowEffect,
                              QGraphicsOpacityEffect, QButtonGroup, QPushButton)
 
 from . import (label, button, logo_pixmap, Card, SettingRow, Toggle, ChoiceCard, Swatch,
                tile_icon, colors, stylesheet, spawn, root_helper, user_info, write_conf,
-               apply_color_scheme, ACCENTS, HONEY, CONFIG_DIR, DEMO, LIGHT)
+               apply_color_scheme, ACCENTS, HONEY, CONFIG_DIR, DEMO, LIGHT, DATA)
 from .parametres import window_preview, lnf_preview
 
 FLAG = os.path.join(CONFIG_DIR, "bienvenue-faite")
@@ -42,13 +42,23 @@ def is_live():
 class Backdrop(QWidget):
     """Fond plein écran aux couleurs du fond d'écran NounoursOS."""
 
+    _fond = None
+
     def paintEvent(self, _):
         p = QPainter(self)
         r = self.rect()
+        # Fond « Origami » de l'identité NounoursOS (sans ourson, la carte porte le logo)
+        if Backdrop._fond is None:
+            Backdrop._fond = QPixmap(os.path.join(DATA, "grub-background.png"))
+        if not Backdrop._fond.isNull():
+            pm = Backdrop._fond.scaled(r.size(), Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                                       Qt.TransformationMode.SmoothTransformation)
+            p.drawPixmap(r.x() - (pm.width() - r.width()) // 2, r.y() - (pm.height() - r.height()) // 2, pm)
+            return
         g = QLinearGradient(0, 0, r.width(), r.height())
         g.setColorAt(0, QColor("#1F1A2E"))
         g.setColorAt(0.55, QColor("#3B2A4F"))
-        g.setColorAt(1, QColor("#C9864B"))
+        g.setColorAt(1, QColor("#D98A3F"))
         p.fillRect(r, g)
         glow = QRadialGradient(QPointF(r.width() * 0.8, r.height() * 0.85), r.width() * 0.55)
         glow.setColorAt(0, QColor(243, 181, 98, 120))

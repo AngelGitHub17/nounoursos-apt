@@ -7,7 +7,7 @@ OUT = os.path.join(os.path.dirname(__file__), "..", "desktop", "includes.chroot"
 
 BLUE, RED, ORANGE, GREEN, PURPLE, GREY, PINK, TEAL, PLUM, HONEY, INDIGO, YELLOW = (
     "#3D7EDB", "#E5484D", "#E8833A", "#3FA36B", "#7E57C2", "#7C7586", "#D9568C", "#2BA3A3",
-    "#4B3766", "#C9864B", "#5B5BD6", "#E0A400")
+    "#4B3766", "#D98A3F", "#5B5BD6", "#E0A400")
 
 S = 'fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"'
 F = 'fill="#fff"'

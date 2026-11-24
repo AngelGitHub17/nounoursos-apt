@@ -4,7 +4,7 @@ import QtQuick.Layouts
 
 Rectangle {
     id: m
-    property color accent: "#C9864B"
+    property color accent: "#D98A3F"
     property real cpu: 0
     property real ram: 0
     property string ramTexte: ""

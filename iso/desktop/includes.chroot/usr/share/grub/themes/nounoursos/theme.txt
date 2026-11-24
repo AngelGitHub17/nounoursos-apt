@@ -1,8 +1,8 @@
 # NounoursOS — thème du menu de démarrage (GRUB)
 title-text: ""
 desktop-image: "background.png"
-desktop-color: "#1F1A2E"
-terminal-font: "DejaVu Sans Regular 16"
+desktop-color: "#1B1329"
+terminal-font: "Inter Regular 16"
 terminal-box: "select_*.png"
 
 + image {
@@ -20,7 +20,7 @@ terminal-box: "select_*.png"
     align = "center"
     text = "NounoursOS"
     color = "#FFFFFF"
-    font = "DejaVu Sans Bold 28"
+    font = "Inter Fort Regular 30"
 }
 
 + boot_menu {
@@ -28,8 +28,8 @@ terminal-box: "select_*.png"
     top = 42%
     width = 40%
     height = 36%
-    item_font = "DejaVu Sans Regular 16"
-    selected_item_font = "DejaVu Sans Bold 16"
+    item_font = "Inter Regular 16"
+    selected_item_font = "Inter Fort Regular 16"
     item_color = "#D9CCE4"
     selected_item_color = "#FFFFFF"
     selected_item_pixmap_style = "select_*.png"
@@ -49,7 +49,7 @@ terminal-box: "select_*.png"
     width = 100%
     align = "center"
     color = "#CFC3DB"
-    font = "DejaVu Sans Regular 16"
+    font = "Inter Regular 16"
     text = "Démarrage de NounoursOS dans %d s"
 }
 
@@ -59,6 +59,6 @@ terminal-box: "select_*.png"
     width = 100%
     align = "center"
     color = "#8F82A0"
-    font = "DejaVu Sans Regular 16"
+    font = "Inter Regular 16"
     text = "↑ ↓ pour choisir · Entrée pour démarrer"
 }

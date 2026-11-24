@@ -35,7 +35,7 @@ DEMO = os.environ.get("NOUNOURSOS_DEMO") == "1"     # données fictives (tests, 
 # --------------------------------------------------------------------------
 # Palette
 # --------------------------------------------------------------------------
-HONEY = "#C9864B"        # caramel : couleur principale
+HONEY = "#D98A3F"        # caramel : couleur principale
 HONEY_HOVER = "#B8733D"
 HONEY_LIGHT = "#F3B562"  # miel
 NIGHT = "#1F1A2E"
@@ -44,12 +44,12 @@ PLUM = "#3B2A4F"
 LIGHT = dict(bg="#F6F2EE", side="#EFE9E3", card="#FFFFFF", border="#E6DED6",
              text="#2B1D3A", sub="#7A6E7E", hover="#F3ECE5", sel=HONEY,
              seltext="#FFFFFF", field="#FFFFFF")
-DARK = dict(bg="#1C1825", side="#221D2D", card="#2A2436", border="#3A3247",
+DARK = dict(bg="#1B1329", side="#221D2D", card="#2A2436", border="#3A3247",
             text="#F4EFF7", sub="#A79FB0", hover="#332C40", sel=HONEY,
             seltext="#FFFFFF", field="#2A2436")
 
 # Teintes NounoursOS : chacune a ses schémas de couleurs (clair/sombre) et son fond d'écran
-ACCENTS = [("Miel", "#C9864B"), ("Myrtille", "#3D7EDB"), ("Lavande", "#7E57C2"),
+ACCENTS = [("Miel", "#D98A3F"), ("Myrtille", "#3D7EDB"), ("Lavande", "#7E57C2"),
            ("Framboise", "#D9568C"), ("Menthe", "#3FA36B"), ("Graphite", "#6B6478")]
 
 
@@ -100,7 +100,7 @@ def _scope(qss):
 
 def _stylesheet(c):
     return f"""
-    * {{ font-family: "Noto Sans", "DejaVu Sans", sans-serif; color: {c['text']}; }}
+    * {{ font-family: "Inter", "Noto Sans", "DejaVu Sans", sans-serif; color: {c['text']}; }}
     QMainWindow, QDialog, #Page {{ background: {c['bg']}; }}
     QLabel {{ background: transparent; }}
     QLabel[role="title"]    {{ font-size: 22pt; font-weight: 700; }}
@@ -206,7 +206,7 @@ def tile_icon(icon_name, color, size=28, glyph=None):
         p.drawPixmap(QRectF(off, off, inner, inner), white, QRectF(white.rect()))
     else:  # pas de thème d'icônes : lettre
         p.setPen(QColor("white"))
-        f = QFont("Noto Sans", int(size * 0.42))
+        f = QFont("Inter", int(size * 0.42))
         f.setBold(True)
         p.setFont(f)
         p.drawText(QRectF(0, 0, size, size), Qt.AlignmentFlag.AlignCenter, glyph or "•")
@@ -225,7 +225,7 @@ def badge_pixmap(count, size=20):
     p.setPen(Qt.PenStyle.NoPen)
     p.drawEllipse(QRectF(0, 0, size, size))
     p.setPen(QColor("white"))
-    f = QFont("Noto Sans", 8)
+    f = QFont("Inter", 8)
     f.setBold(True)
     p.setFont(f)
     p.drawText(QRectF(0, 0, size, size), Qt.AlignmentFlag.AlignCenter, str(count))
@@ -373,7 +373,7 @@ class ChoiceCard(QAbstractButton):
         p.setPen(pen)
         p.setBrush(Qt.BrushStyle.NoBrush)
         p.drawRoundedRect(rect, 12, 12)
-        f = QFont("Noto Sans", 10)
+        f = QFont("Inter", 10)
         f.setBold(self.isChecked())
         p.setFont(f)
         p.setPen(QColor(c["text"]))

@@ -70,3 +70,6 @@ fprintd
 libpam-fprintd
 ksystemstats
 qml6-module-org-kde-ksysguard
+
+# Identité NounoursOS : police Inter
+fonts-inter

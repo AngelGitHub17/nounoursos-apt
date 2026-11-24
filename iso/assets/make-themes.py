@@ -16,7 +16,7 @@ RACINE = os.path.join(ICI, "..", "desktop", "includes.chroot", "usr", "share")
 
 # nom, accent, lien (clair), lien (sombre), lueur du fond d'écran
 VARIANTES = [
-    ("Miel", (201, 134, 75), (160, 98, 42), (243, 181, 98), "#F3B562"),
+    ("Miel", (217, 138, 63), (160, 98, 42), (245, 184, 98), "#F5B862"),
     ("Myrtille", (61, 126, 219), (38, 96, 180), (122, 172, 245), "#8DB8F5"),
     ("Lavande", (126, 87, 194), (98, 62, 165), (178, 150, 232), "#C2A8F0"),
     ("Menthe", (63, 163, 107), (40, 128, 80), (120, 214, 160), "#8FE0B2"),
@@ -70,33 +70,15 @@ def schema(base, nom, accent, lien, sombre):
     return "\n".join(out) + "\n"
 
 
-FOND_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
-  <defs>
-    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1F1A2E"/>
-      <stop offset="0.55" stop-color="#3B2A4F"/>
-      <stop offset="1" stop-color="{accent}"/>
-    </linearGradient>
-    <radialGradient id="glow" cx="0.78" cy="0.82" r="0.6">
-      <stop offset="0" stop-color="{lueur}" stop-opacity="0.55"/>
-      <stop offset="1" stop-color="{lueur}" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <rect width="1920" height="1080" fill="url(#sky)"/>
-  <rect width="1920" height="1080" fill="url(#glow)"/>
-  <g opacity="0.07" fill="#FFFFFF" transform="translate(1180 360) scale(1.35)">
-    <circle cx="128" cy="140" r="78"/><circle cx="384" cy="140" r="78"/>
-    <ellipse cx="256" cy="282" rx="190" ry="176"/>
-  </g>
-</svg>
-"""
-
-
 def fond(nom, accent, lueur):
+    """Fond « Origami » de l'identité NounoursOS, aux couleurs de la teinte."""
+    import sys
+    sys.path.insert(0, ICI)
+    from identite import fond_svg
     d = os.path.join(RACINE, "wallpapers", f"NounoursOS-{nom}")
     images = os.path.join(d, "contents", "images")
     os.makedirs(images, exist_ok=True)
-    svg = FOND_SVG.format(accent="#%02X%02X%02X" % accent, lueur=lueur)
+    svg = fond_svg(accent="#%02X%02X%02X" % accent, lueur=lueur, graine=17)
     tmp = "/tmp/nounoursos-fond.svg"
     with open(tmp, "w") as f:
         f.write(svg)

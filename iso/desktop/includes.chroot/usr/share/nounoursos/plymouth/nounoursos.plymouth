@@ -4,8 +4,8 @@ Description=Écran de démarrage NounoursOS
 ModuleName=two-step
 
 [two-step]
-Font=Noto Sans 12
-TitleFont=Noto Sans Light 30
+Font=Inter 12
+TitleFont=Inter Light 30
 ImageDir=/usr/share/plymouth/themes/nounoursos
 DialogHorizontalAlignment=.5
 DialogVerticalAlignment=.382
@@ -17,8 +17,8 @@ WatermarkHorizontalAlignment=.5
 WatermarkVerticalAlignment=.42
 Transition=none
 TransitionDuration=0.0
-BackgroundStartColor=0x1F1A2E
-BackgroundEndColor=0x3B2A4F
-ProgressBarBackgroundColor=0x3B2A4F
-ProgressBarForegroundColor=0xF3B562
+BackgroundStartColor=0x1B1329
+BackgroundEndColor=0x2B1C40
+ProgressBarBackgroundColor=0x3A2850
+ProgressBarForegroundColor=0xF5B862
 MessageBelowAnimation=true

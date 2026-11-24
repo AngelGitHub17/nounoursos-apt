@@ -21,3 +21,7 @@ library=org.kde.breeze
 theme=Breeze
 ButtonsOnLeft=M
 ButtonsOnRight=IAX
+
+[ksplashrc][KSplash]
+Engine=KSplashQML
+Theme=org.nounoursos.classique
