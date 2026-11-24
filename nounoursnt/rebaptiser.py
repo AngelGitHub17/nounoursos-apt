@@ -294,7 +294,11 @@ def remplacer_images(racine):
     fait = []
 
     def p(rel):
-        return os.path.join(racine, rel)
+        # Le noyau s'appelle « ntos » dans les sources récentes, « ntoskrnl » avant
+        chemin = os.path.join(racine, rel)
+        if rel.startswith("ntos/") and not os.path.exists(chemin):
+            chemin = os.path.join(racine, "ntoskrnl/" + rel[5:])
+        return chemin
 
     def taille(rel):
         return Image.open(p(rel)).size
@@ -425,7 +429,7 @@ ReactOS et Windows appartiennent à leurs propriétaires respectifs.
 
 
 def main():
-    if len(sys.argv) != 2 or not os.path.isdir(os.path.join(sys.argv[1], "ntos")):
+    if len(sys.argv) != 2 or not any(os.path.isdir(os.path.join(sys.argv[1], d)) for d in ("ntos", "ntoskrnl")):
         print(__doc__)
         return 2
     racine = sys.argv[1]
