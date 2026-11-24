@@ -106,8 +106,11 @@ Applications PyQt6 : `iso/desktop/includes.chroot/usr/lib/nounoursos/python/noun
 - [x] NounoursNT : rebaptême (textes + images), workflow de construction et de publication
 
 ### À faire
-- [ ] NounoursNT : vérifier les captures du test QEMU de chaque construction ; remplacer aussi les écrans
-      de l'installateur texte et le fond d'écran par défaut si l'identité doit aller plus loin
+- [ ] NounoursNT : publier dès qu'un commit de LiberNT démarre. Au 24/11/2026, `master` (853cdc5a42b) plante
+      au démarrage dans QEMU, **avec ou sans rebaptême** (journal série : KiInitializeXStateConfiguration pour
+      LiberNT, storport pour NounoursNT) ; le commit de la dernière version publiée ne se compile plus (Mesa).
+      Relancer `nounoursnt.yml` avec `comparer` coché et lire `serie.log` + captures avant de cocher `publier`.
+- [ ] Supprimer la Release `nounoursnt-20261124-853cdc5a42b` (publiée avant le test, ne démarre pas)
 - [ ] Tester les ISO 1.3 en VM : connexion SDDM, Capsule sur disque USB, recherche, NT (`/dev/ntsync`, un `.exe`)
 - [ ] Reconnaissance du visage (attendre un Howdy empaqueté pour Debian 13)
 - [ ] NT : Wine avec ntsync, un préfixe par programme, raccourcis automatiques dans le menu
