@@ -2,3 +2,8 @@
 winetricks
 cabextract
 fonts-wine
+# LiberNT dans une fenêtre (QEMU + UEFI)
+qemu-system-x86
+qemu-system-gui
+qemu-utils
+ovmf

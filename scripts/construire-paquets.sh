@@ -128,11 +128,13 @@ P="$WORK/nounoursos-nt"
 N="$ISO/nt/includes.chroot"
 mkdir -p "$P/DEBIAN"
 take "$P" "$N" "usr/bin/nounoursos-exe"
+take "$P" "$N" "usr/bin/nounoursos-libernt"
 take "$P" "$N" "usr/share/applications/nounoursos-exe.desktop"
+take "$P" "$N" "usr/share/applications/nounoursos-libernt.desktop"
 take "$P" "$N" "etc/modules-load.d/nounoursos-ntsync.conf"
 take "$P" "$N" "etc/apt/preferences.d/nounoursos-noyau-nt.pref"
 take "$P" "$N" "usr/lib/udev/rules.d/70-nounoursos-ntsync.rules"
-chmod 755 "$P/usr/bin/nounoursos-exe"
+chmod 755 "$P/usr/bin/nounoursos-exe" "$P/usr/bin/nounoursos-libernt"
 cat > "$P/DEBIAN/control" <<EOF
 Package: nounoursos-nt
 Version: ${DESKTOP_VERSION}
@@ -142,12 +144,13 @@ Installed-Size: @SIZE@
 Section: otherosfs
 Priority: optional
 Depends: nounoursos-desktop
-Recommends: winehq-stable | wine, winetricks, cabextract
+Recommends: winehq-stable | wine, winetricks, cabextract, qemu-system-x86, qemu-system-gui, qemu-utils, ovmf
 Homepage: https://nounourscorp.fr/
 Description: NounoursOS NT : couche de compatibilité Windows
  Ouvre les programmes Windows (.exe, .msi) d'un double-clic avec Wine,
  active le pilote ntsync (synchronisation façon noyau Windows NT) et
- garde le noyau Linux récent de trixie-backports.
+ garde le noyau Linux récent de trixie-backports. Permet aussi de démarrer
+ LiberNT (système NT libre, projet indépendant) dans une fenêtre.
 EOF
 cat > "$P/DEBIAN/postinst" <<'EOF'
 #!/bin/sh

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=LiberNT
+GenericName=Système NT libre
+Comment=LiberNT, système libre compatible Windows (projet indépendant), dans une fenêtre
+Exec=sh -c 'nounoursos-libernt demarrer || nounoursos-parametres windows'
+Icon=computer
+Terminal=false
+Categories=System;Emulator;
+Keywords=windows;nt;reactos;libernt;machine virtuelle;

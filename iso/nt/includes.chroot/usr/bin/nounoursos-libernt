@@ -119,7 +119,7 @@ PROFILS = {
     "xhci": ["-device", "qemu-xhci", "-device", "usb-tablet", "-nic", "user,model=e1000"],
     "ps2": ["-nic", "user,model=e1000"],
 }
-PROFIL_DEFAUT = "usb"
+PROFIL_DEFAUT = "xhci"           # le seul qui atteint le bureau dans les tests
 
 
 def _options(fenetre=True):
