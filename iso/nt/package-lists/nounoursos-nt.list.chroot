@@ -1,0 +1,4 @@
+# NounoursOS NT : couche de compatibilité Windows
+winetricks
+cabextract
+fonts-wine

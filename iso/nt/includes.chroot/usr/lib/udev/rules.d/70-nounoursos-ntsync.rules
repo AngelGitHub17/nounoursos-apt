@@ -1,0 +1,2 @@
+# Synchronisation façon Windows NT (ntsync) accessible à l'utilisateur connecté
+KERNEL=="ntsync", TAG+="uaccess"

@@ -1,0 +1,4 @@
+# NounoursOS NT : noyau récent de trixie-backports (pilote ntsync : Linux 6.14 ou plus récent)
+Package: linux-image-amd64 linux-image-[0-9]* linux-headers-amd64 linux-headers-[0-9]* linux-kbuild-[0-9]* linux-base
+Pin: release n=trixie-backports
+Pin-Priority: 990

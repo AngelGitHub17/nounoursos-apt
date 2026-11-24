@@ -1,0 +1,26 @@
+#!/bin/sh
+# Ouvre un programme Windows (.exe, .msi, .lnk, .bat) avec Wine — NounoursOS NT
+f="$1"
+[ -n "$f" ] || { echo "Usage : nounoursos-exe fichier.exe" >&2; exit 2; }
+WINE=""
+for c in /opt/wine-stable/bin/wine /opt/wine-staging/bin/wine /opt/wine-devel/bin/wine wine; do
+  if command -v "$c" >/dev/null 2>&1; then WINE="$c"; break; fi
+done
+if [ -z "$WINE" ]; then
+  kdialog --title "Applications Windows" --error "Wine n'est pas installé.\nOuvrez Paramètres › Applications Windows." 2>/dev/null
+  exit 1
+fi
+export WINEPREFIX="${WINEPREFIX:-$HOME/.wine}"
+export WINEDEBUG="${WINEDEBUG:--all}"
+# Premier lancement : création de « C:\ » (peut prendre une minute)
+if [ ! -d "$WINEPREFIX/drive_c" ]; then
+  notify-send -a "NounoursOS" -i nounoursos "Préparation de Windows" \
+    "Création du lecteur C: pour vos programmes Windows, patientez un instant…" 2>/dev/null
+  "$WINE" wineboot --init >/dev/null 2>&1
+fi
+case "$(printf '%s' "$f" | tr 'A-Z' 'a-z')" in
+  *.msi) exec "$WINE" msiexec /i "$f" ;;
+  *.bat|*.cmd) exec "$WINE" cmd /c "$f" ;;
+  *.lnk) exec "$WINE" start /unix "$f" ;;
+  *) cd "$(dirname "$f")" && exec "$WINE" "$f" ;;
+esac

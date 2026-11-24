@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # =============================================================================
 #  NounoursOS — script de construction des ISO
-#  Usage : sudo ./build.sh [desktop|server]
+#  Usage : sudo ./build.sh [desktop|server|nt]
+#          nt = NounoursOS NT : bureau + noyau récent (ntsync) + Wine, .exe en double-clic
 #          sudo CLEAN=1 ./build.sh desktop    (repart de zéro, vide aussi le cache)
 #  À lancer sur une machine/VM Debian 13 (Trixie).
 # =============================================================================
@@ -15,8 +16,11 @@ EDITION="${1:-desktop}"
 case "$EDITION" in
   desktop) PRETTY="NounoursOS" ;;
   server)  PRETTY="NounoursOS Server" ;;
-  *) echo "Usage : sudo $0 [desktop|server]" >&2; exit 1 ;;
+  nt)      PRETTY="NounoursOS NT" ;;
+  *) echo "Usage : sudo $0 [desktop|server|nt]" >&2; exit 1 ;;
 esac
+# L'édition NT est le bureau complet + une couche par-dessus (dossier nt/)
+BASE_EDITION="$EDITION"; [ "$EDITION" = nt ] && BASE_EDITION=desktop
 
 log() { printf '\n\033[1;33m🐻 %s\033[0m\n' "$*"; }
 
@@ -85,10 +89,14 @@ COMMON_OPTS=(
   --image-name      "NounoursOS-${EDITION}-${VERSION}"
 )
 
-if [ "$EDITION" = "desktop" ]; then
+NT_OPTS=()
+# NT : dépôt backports activé pour le noyau récent (pilote ntsync), voir nt/archives/
+[ "$EDITION" = nt ] && NT_OPTS=(--backports true)
+
+if [ "$BASE_EDITION" = "desktop" ]; then
   # Pas de copie supplémentaire des firmwares sur l'ISO : Calamares installe le
   # système live (qui les contient déjà). Gain : plusieurs centaines de Mo.
-  lb config "${COMMON_OPTS[@]}" \
+  lb config "${COMMON_OPTS[@]}" "${NT_OPTS[@]}" \
     --firmware-binary false \
     --debian-installer none \
     --bootappend-live "boot=live components quiet splash locales=fr_FR.UTF-8 keyboard-layouts=fr username=nounours user-fullname=Nounours hostname=nounoursos user-default-groups=audio,cdrom,dip,floppy,video,plugdev,netdev,powerdev,scanner,bluetooth,docker"
@@ -103,7 +111,8 @@ fi
 # --- Copie de nos fichiers : commun puis édition --------------------------------------
 log "Copie des fichiers NounoursOS"
 cp -a "$ROOT/common/." config/
-cp -a "$ROOT/$EDITION/." config/
+cp -a "$ROOT/$BASE_EDITION/." config/
+[ "$EDITION" = nt ] && cp -a "$ROOT/nt/." config/
 chmod +x config/hooks/live/*.hook.chroot 2>/dev/null || true
 find config/includes.chroot/usr/bin config/includes.chroot/usr/local/bin -type f -exec chmod +x {} + 2>/dev/null || true
 
@@ -117,7 +126,8 @@ if [ -f "$ROOT/../depot.conf" ]; then
   . "$ROOT/../depot.conf"
   WANT="nounoursos-archive-keyring nounoursos-release"
   OPTIONAL=""
-  if [ "$EDITION" = "desktop" ]; then WANT="$WANT nounoursos-desktop"; OPTIONAL="winboat nounours-launcher nounours-browser"; fi
+  if [ "$BASE_EDITION" = "desktop" ]; then WANT="$WANT nounoursos-desktop"; OPTIONAL="winboat nounours-launcher nounours-browser"; fi
+  if [ "$EDITION" = "nt" ]; then OPTIONAL="nounoursos-nt $OPTIONAL"; fi
   IDX=$(curl -fsSL --max-time 30 "$URL/dists/$SUITE/$COMPONENT/binary-amd64/Packages" || true)
   mkdir -p config/packages.chroot
   ok=1

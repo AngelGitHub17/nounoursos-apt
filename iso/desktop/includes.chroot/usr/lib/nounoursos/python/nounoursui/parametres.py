@@ -1096,15 +1096,18 @@ class Settings(QMainWindow):
     # Applications Windows (WinBoat) ---------------------------------------------------
     def page_windows(self):
         pg = page("Applications Windows",
-                  "WinBoat fait tourner un vrai Windows en arrière-plan et affiche ses logiciels "
-                  "dans des fenêtres NounoursOS, comme des applications normales.")
+                  "Deux façons de lancer vos logiciels Windows : directement avec la couche NT (Wine), "
+                  "ou dans un vrai Windows avec WinBoat pour ceux qui résistent.")
+        self._section_nt(pg)
+        pg.body.addWidget(label("WINBOAT : UN VRAI WINDOWS", "section"))
+        pg.body.addWidget(label("WinBoat fait tourner Windows en arrière-plan et affiche ses logiciels "
+                                "dans des fenêtres NounoursOS, comme des applications normales.", "sub", wrap=True))
         checks = self._winboat_checks()
         card = Card()
         for title, ok, detail in checks:
             mark = label("✅" if ok else "⚠️")
             mark.setStyleSheet("font-size: 13pt;")
             card.add(SettingRow(title, detail, mark))
-        pg.body.addWidget(label("VÉRIFICATIONS", "section"))
         pg.body.addWidget(card)
 
         row = QHBoxLayout()
@@ -1129,6 +1132,55 @@ class Settings(QMainWindow):
                                 "(environ 30 minutes). Prévoyez au moins 32 Go libres.",
                                 "sub", wrap=True))
         return finish(pg)
+
+    def _wine(self):
+        if DEMO:
+            return "wine"
+        for c in ("/opt/wine-stable/bin/wine", "/opt/wine-staging/bin/wine", "wine"):
+            if shutil.which(c):
+                return c
+        return ""
+
+    def _section_nt(self, pg):
+        wine = self._wine()
+        noyau = "7.3.4" if DEMO else os.uname().release.split("-")[0]
+        ntsync = DEMO or os.path.exists("/dev/ntsync")
+        version = "wine-11.0" if DEMO else (run([wine, "--version"], timeout=10).strip() if wine else "")
+        pg.body.addWidget(label("COUCHE NT (WINE)", "section"))
+        card = Card()
+
+        def marque(t):
+            m = label(t)
+            m.setStyleSheet("font-size: 13pt;")
+            return m
+        card.add(SettingRow("Programmes Windows",
+                            ("Les .exe et .msi s'ouvrent d'un double-clic (" + version + ")") if wine else
+                            "Non installé : inclus dans l'édition NounoursOS NT.",
+                            marque("✅" if wine else "⚠️"), real_icon("", 30, key="windows")))
+        card.add(SettingRow("Synchronisation NT (ntsync)",
+                            ("Active : les jeux et logiciels Windows tournent plus vite (noyau %s)" % noyau)
+                            if ntsync else "Indisponible avec le noyau %s (6.14 ou plus récent requis)" % noyau,
+                            marque("✅" if ntsync else "➖")))
+        pg.body.addWidget(card)
+        if not wine:
+            return
+        row = QHBoxLayout()
+        row.addWidget(button("Ouvrir un programme Windows…", "primary", self._ouvrir_exe))
+        row.addWidget(button("Lecteur C:", None, lambda: spawn(
+            ["xdg-open", os.path.join(os.environ.get("WINEPREFIX", os.path.expanduser("~/.wine")), "drive_c")])))
+        row.addWidget(button("Réglages Wine", None, lambda: spawn([wine.replace("/wine", "/winecfg")
+                                                                  if wine.startswith("/") else "winecfg"])))
+        row.addStretch()
+        w = QWidget()
+        w.setLayout(row)
+        pg.body.addWidget(w)
+
+    def _ouvrir_exe(self):
+        from PyQt6.QtWidgets import QFileDialog
+        f, _ = QFileDialog.getOpenFileName(self, "Programme Windows", os.path.expanduser("~/Téléchargements"),
+                                           "Programmes Windows (*.exe *.msi *.bat *.lnk)")
+        if f:
+            spawn(["nounoursos-exe", f])
 
     def _winboat_bin(self):
         if DEMO:

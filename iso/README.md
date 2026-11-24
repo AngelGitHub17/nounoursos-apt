@@ -5,9 +5,10 @@ Distribution Linux de **NounoursCorp**, basée sur **Debian 13 « Trixie »**.
 | Édition | Contenu | Installateur |
 |---|---|---|
 | **NounoursOS** (`desktop`) | KDE Plasma 6, deux dispositions au choix : **Classique** ou **Mac** (barre de menus + dock) | Calamares (graphique) |
+| **NounoursOS NT** (`nt`) | Le bureau + couche Windows : noyau récent avec **ntsync**, **Wine**, `.exe` / `.msi` en double-clic | Calamares (graphique) |
 | **NounoursOS Server** (`server`) | Console uniquement, SSH, pare-feu ufw, fail2ban, mises à jour de sécurité automatiques | Debian-Installer (texte) |
 
-Version actuelle : **1.0 « Guimauve »** (modifiable dans `VERSION`).
+Version actuelle : **1.2 « Doudou »** (modifiable dans `VERSION`).
 
 ---
 
@@ -96,10 +97,10 @@ En live : utilisateur `nounours`, mot de passe `live`.
 
 ```
 nounoursos/
-├── build.sh                 Script de build (desktop | server)
+├── build.sh                 Script de build (desktop | server | nt)
 ├── VERSION                  Numéro et nom de version (source unique)
 ├── assets/                  Sources SVG : logo, fond d'écran
-├── common/                  Partagé par les 2 éditions
+├── common/                  Partagé par toutes les éditions
 │   ├── package-lists/       Paquets de base, firmwares
 │   ├── hooks/live/          Branding système (os-release, locale FR…)
 │   └── includes.chroot/     Fichiers copiés tels quels dans le système (icônes, GRUB)
@@ -111,6 +112,10 @@ nounoursos/
 │       ├── usr/share/wallpapers/NounoursOS/  Fond d'écran
 │       ├── etc/calamares/branding/nounoursos Installateur
 │       └── usr/bin/nounoursos-*              Accueil + choix de disposition
+├── nt/                      Couche NT, posée par-dessus desktop/ (build.sh nt)
+│   ├── archives/            Pin APT : noyau de trixie-backports (ntsync)
+│   ├── hooks/live/          i386, WineHQ (repli : Wine de Debian), associations .exe/.msi
+│   └── includes.chroot/     nounoursos-exe, module ntsync, règle udev
 └── server/                  Édition serveur (SSH, ufw, fail2ban, motd)
 ```
 

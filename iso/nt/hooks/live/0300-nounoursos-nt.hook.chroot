@@ -1,0 +1,39 @@
+#!/bin/sh
+# NounoursOS NT : Wine (WineHQ stable, sinon Wine de Debian) + associations .exe/.msi
+set -e
+export DEBIAN_FRONTEND=noninteractive
+
+echo "[NounoursOS NT] Architecture i386 (programmes Windows 32 bits)"
+dpkg --add-architecture i386
+apt-get update
+
+echo "[NounoursOS NT] Dépôt WineHQ"
+apt-get install -y --no-install-recommends curl gpg
+mkdir -pm755 /etc/apt/keyrings
+ok=0
+if curl -fsSL --max-time 60 https://dl.winehq.org/wine-builds/winehq.key | gpg --dearmor --yes -o /etc/apt/keyrings/winehq-archive.key \
+   && curl -fsSL --max-time 60 -o /etc/apt/sources.list.d/winehq-trixie.sources \
+        https://dl.winehq.org/wine-builds/debian/dists/trixie/winehq-trixie.sources \
+   && apt-get update \
+   && apt-get install -y --install-recommends winehq-stable; then
+  ok=1
+else
+  echo "[NounoursOS NT] WineHQ indisponible : Wine de Debian à la place"
+  rm -f /etc/apt/sources.list.d/winehq-trixie.sources
+  apt-get update
+  apt-get install -y wine wine32:i386 wine64 libwine
+fi
+[ -x /opt/wine-stable/bin/wine ] && ln -sf /opt/wine-stable/bin/wine /usr/local/bin/wine \
+  && ln -sf /opt/wine-stable/bin/winecfg /usr/local/bin/winecfg 2>/dev/null || true
+
+echo "[NounoursOS NT] .exe et .msi s'ouvrent d'un double-clic"
+M=/etc/xdg/mimeapps.list
+[ -f "$M" ] || printf '[Default Applications]\n' > "$M"
+for t in application/x-ms-dos-executable application/x-msdownload application/vnd.microsoft.portable-executable \
+         application/x-msi application/x-ms-shortcut application/x-bat; do
+  grep -q "^$t=" "$M" || sed -i "/^\[Default Applications\]/a $t=nounoursos-exe.desktop;" "$M"
+done
+update-desktop-database -q /usr/share/applications 2>/dev/null || true
+
+echo "[NounoursOS NT] Noyau : $(ls /boot | grep vmlinuz || true)"
+exit 0

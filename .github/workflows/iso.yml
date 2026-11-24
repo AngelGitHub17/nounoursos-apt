@@ -11,8 +11,8 @@ on:
       edition:
         description: "Édition(s) à construire"
         type: choice
-        options: [les-deux, desktop, server]
-        default: les-deux
+        options: [toutes, desktop, server, nt]
+        default: toutes
       publier:
         description: "Publier une Release GitHub avec les ISO"
         type: boolean
@@ -34,7 +34,8 @@ jobs:
           case "${{ inputs.edition }}" in
             desktop) echo 'editions=["desktop"]' >> "$GITHUB_OUTPUT" ;;
             server)  echo 'editions=["server"]'  >> "$GITHUB_OUTPUT" ;;
-            *)       echo 'editions=["desktop","server"]' >> "$GITHUB_OUTPUT" ;;
+            nt)      echo 'editions=["nt"]'      >> "$GITHUB_OUTPUT" ;;
+            *)       echo 'editions=["desktop","nt","server"]' >> "$GITHUB_OUTPUT" ;;
           esac
 
   iso:
@@ -118,6 +119,7 @@ jobs:
             echo "### Télécharger"
             echo
             echo "- **NounoursOS** (bureau KDE) : \`NounoursOS-desktop-${VERSION}-amd64.iso\`"
+            echo "- **NounoursOS NT** (bureau + programmes Windows) : \`NounoursOS-nt-${VERSION}-amd64.iso\`"
             echo "- **NounoursOS Server** : \`NounoursOS-server-${VERSION}-amd64.iso\`"
             echo
             echo "Copier l'ISO sur une clé USB avec Rufus (mode DD), Balena Etcher ou \`dd\`."

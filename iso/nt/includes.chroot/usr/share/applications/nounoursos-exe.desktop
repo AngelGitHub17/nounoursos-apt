@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Programme Windows
+GenericName=Lanceur de programmes Windows
+Comment=Ouvre les .exe et .msi avec la couche NT de NounoursOS (Wine)
+Exec=nounoursos-exe %f
+Icon=wine
+Terminal=false
+NoDisplay=true
+MimeType=application/x-ms-dos-executable;application/x-msdownload;application/vnd.microsoft.portable-executable;application/x-msi;application/x-ms-shortcut;application/x-bat;
+Categories=System;Emulator;

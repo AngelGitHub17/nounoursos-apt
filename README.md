@@ -5,7 +5,7 @@ Ce dépôt contient **tout** NounoursOS :
 
 | Dossier | Contenu |
 |---|---|
-| [`iso/`](iso/) | Construction des ISO (bureau et Server) avec live-build — voir [`iso/README.md`](iso/README.md) |
+| [`iso/`](iso/) | Construction des ISO (bureau, NT et Server) avec live-build — voir [`iso/README.md`](iso/README.md) |
 | [`scripts/`](scripts/) | Fabrication des paquets `.deb` et du dépôt APT signé |
 | [`nouveautes/`](nouveautes/) | Texte « Quoi de neuf » de chaque version, affiché dans *Mise à jour de NounoursOS* |
 | [`.github/workflows/publier.yml`](.github/workflows/publier.yml) | Publication automatique du dépôt sur GitHub Pages |

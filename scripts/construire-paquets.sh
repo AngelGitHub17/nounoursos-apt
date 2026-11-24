@@ -101,9 +101,13 @@ cat > "$P/DEBIAN/postinst" <<'EOF'
 #!/bin/sh
 set -e
 if [ "$1" = "configure" ]; then
-  ed=desktop
-  grep -q '^NOUNOURSOS_EDITION=server' /usr/lib/os-release 2>/dev/null && ed=server
-  if [ "$ed" = server ]; then pretty="NounoursOS Server"; else pretty="NounoursOS"; fi
+  # On garde l'édition déjà installée (desktop, server, nt…)
+  ed=$(sed -n 's/^NOUNOURSOS_EDITION=//p' /usr/lib/os-release 2>/dev/null | tr -d '"' | head -1)
+  case "$ed" in
+    server) pretty="NounoursOS Server" ;;
+    nt)     pretty="NounoursOS NT" ;;
+    *)      ed=desktop; pretty="NounoursOS" ;;
+  esac
   for f in /usr/lib/os-release /etc/issue /etc/issue.net; do
     if ! dpkg-divert --list "$f" | grep -q "$f.debian"; then
       dpkg-divert --local --rename --divert "$f.debian" --add "$f"
@@ -116,6 +120,46 @@ if [ "$1" = "configure" ]; then
 fi
 exit 0
 EOF
+build "$P"
+
+# -----------------------------------------------------------------------------
+log "nounoursos-nt $DESKTOP_VERSION"
+P="$WORK/nounoursos-nt"
+N="$ISO/nt/includes.chroot"
+mkdir -p "$P/DEBIAN"
+take "$P" "$N" "usr/bin/nounoursos-exe"
+take "$P" "$N" "usr/share/applications/nounoursos-exe.desktop"
+take "$P" "$N" "etc/modules-load.d/nounoursos-ntsync.conf"
+take "$P" "$N" "etc/apt/preferences.d/nounoursos-noyau-nt.pref"
+take "$P" "$N" "usr/lib/udev/rules.d/70-nounoursos-ntsync.rules"
+chmod 755 "$P/usr/bin/nounoursos-exe"
+cat > "$P/DEBIAN/control" <<EOF
+Package: nounoursos-nt
+Version: ${DESKTOP_VERSION}
+Architecture: all
+Maintainer: ${MAINTAINER}
+Installed-Size: @SIZE@
+Section: otherosfs
+Priority: optional
+Depends: nounoursos-desktop
+Recommends: winehq-stable | wine, winetricks, cabextract
+Homepage: https://nounourscorp.fr/
+Description: NounoursOS NT : couche de compatibilité Windows
+ Ouvre les programmes Windows (.exe, .msi) d'un double-clic avec Wine,
+ active le pilote ntsync (synchronisation façon noyau Windows NT) et
+ garde le noyau Linux récent de trixie-backports.
+EOF
+cat > "$P/DEBIAN/postinst" <<'EOF'
+#!/bin/sh
+set -e
+if [ "$1" = "configure" ]; then
+  modprobe ntsync 2>/dev/null || true
+  udevadm trigger --subsystem-match=misc 2>/dev/null || true
+  update-desktop-database -q /usr/share/applications 2>/dev/null || true
+fi
+exit 0
+EOF
+chmod 755 "$P/DEBIAN/postinst"
 build "$P"
 
 # -----------------------------------------------------------------------------
