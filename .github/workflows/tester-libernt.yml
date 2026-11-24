@@ -11,6 +11,10 @@ on:
 
 jobs:
   tester:
+    strategy:
+      fail-fast: false
+      matrix:
+        profil: [projet, usb, xhci, ps2]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -33,11 +37,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: python3 iso/nt/includes.chroot/usr/bin/nounoursos-libernt telecharger | grep -v '^progression:' ; python3 iso/nt/includes.chroot/usr/bin/nounoursos-libernt etat
       - name: Démarrer et capturer l'écran
+        env:
+          NOUNOURSOS_LIBERNT_PROFIL: ${{ matrix.profil }}
         run: |
           mkdir -p captures
           python3 iso/nt/includes.chroot/usr/bin/nounoursos-libernt capture captures/libernt-1.png 60
           python3 iso/nt/includes.chroot/usr/bin/nounoursos-libernt capture captures/libernt-2.png ${{ inputs.attente }}
       - uses: actions/upload-artifact@v4
         with:
-          name: captures-libernt
+          name: captures-libernt-${{ matrix.profil }}
           path: captures/

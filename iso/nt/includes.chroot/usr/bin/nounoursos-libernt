@@ -112,6 +112,16 @@ def telecharger():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+# Périphériques : souris USB (pointeur fluide) ou PS/2, réseau e1000
+PROFILS = {
+    "projet": ["-usb", "-device", "usb-tablet", "-nic", "none"],
+    "usb": ["-usb", "-device", "usb-tablet", "-nic", "user,model=e1000"],
+    "xhci": ["-device", "qemu-xhci", "-device", "usb-tablet", "-nic", "user,model=e1000"],
+    "ps2": ["-nic", "user,model=e1000"],
+}
+PROFIL_DEFAUT = "usb"
+
+
 def _options(fenetre=True):
     try:
         with open("/proc/meminfo") as f:
@@ -132,8 +142,12 @@ def _options(fenetre=True):
         opts += ["-drive", f"if=pflash,format=raw,readonly=on,file={code}",
                  "-drive", f"if=pflash,format=raw,file={vars_}"]
     opts += ["-drive", f"if=none,id=disque,format=qcow2,file={DISQUE}", "-device", "ide-hd,drive=disque",
-             "-vga", "std", "-usb", "-device", "usb-tablet",
-             "-nic", "user,model=e1000", "-rtc", "base=localtime"]
+             "-vga", "std", "-rtc", "base=localtime"]
+    profil = os.environ.get("NOUNOURSOS_LIBERNT_PROFIL", PROFIL_DEFAUT)
+    opts += PROFILS.get(profil, PROFILS[PROFIL_DEFAUT])
+    if profil == "projet":                 # réglages exacts du test du projet LiberNT
+        opts[opts.index("-smp") + 1] = "4"
+        opts[opts.index("-m") + 1] = "2048"
     if fenetre:
         opts += ["-display", "gtk,zoom-to-fit=on,show-menubar=off"]
     return opts, kvm
