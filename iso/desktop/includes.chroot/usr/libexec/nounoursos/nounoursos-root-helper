@@ -18,6 +18,14 @@ CONF
     usermod -aG docker "$u"
     systemctl enable --now docker.service >/dev/null 2>&1 || true
     ;;
+  empreinte-pam)
+    # Empreinte acceptée pour sudo, polkit et la connexion (pam-auth-update)
+    case "$2" in
+      on)  pam-auth-update --package --enable fprintd ;;
+      off) pam-auth-update --package --disable fprintd ;;
+      *) echo "usage: empreinte-pam on|off" >&2; exit 2 ;;
+    esac
+    ;;
   maj-maintenant|maj-preparer)
     # Mise à jour avec APT (plus fiable que PackageKit pour les paquets NounoursOS) :
     # pas de question de configuration, attente si un autre outil tient le verrou,

@@ -130,7 +130,11 @@ take "$P" "$D" "usr/libexec/nounoursos"
 take "$P" "$D" "usr/share/applications/nounoursos-*.desktop"
 take "$P" "$D" "usr/share/polkit-1/actions/fr.nounourscorp.nounoursos.policy"
 take "$P" "$D" "usr/share/plasma/look-and-feel/org.nounoursos.*"
-take "$P" "$D" "usr/share/wallpapers/NounoursOS"
+take "$P" "$D" "usr/share/wallpapers/NounoursOS*"
+take "$P" "$D" "usr/share/color-schemes/NounoursOS*.colors"
+take "$P" "$D" "usr/share/plasma/plasmoids/org.nounoursos.*"
+take "$P" "$D" "usr/share/plasma/wallpapers/org.nounoursos.*"
+take "$P" "$D" "etc/nounoursos"
 take "$P" "$D" "usr/share/nounoursos/plymouth"
 take "$P" "$D" "etc/xdg/autostart/nounoursos-*.desktop"
 take "$P" "$D" "usr/share/sounds/nounoursos"
@@ -162,7 +166,8 @@ Priority: optional
 Depends: nounoursos-release, python3, python3-pyqt6, packagekit, packagekit-tools, kdialog, plasma-workspace${DESK_DEPS_EXTRA}
 Recommends: unattended-upgrades, pciutils, xdg-user-dirs, kde-cli-tools,
  winboat, docker.io, docker-compose, freerdp3-x11, nounours-launcher, nounours-browser,
- flatpak, plasma-discover-backend-flatpak
+ flatpak, plasma-discover-backend-flatpak, swayidle, fprintd, libpam-fprintd,
+ ksystemstats, qml6-module-org-kde-ksysguard
 Homepage: https://nounourscorp.fr/
 Description: Bureau NounoursOS : applications, thème et fonds d'écran
  Paramètres, assistant de bienvenue, Mise à jour de NounoursOS,

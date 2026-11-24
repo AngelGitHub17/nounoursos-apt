@@ -63,3 +63,10 @@ freerdp3-x11
 flatpak
 plasma-discover-backend-flatpak
 libnotify-bin
+swayidle
+
+# Empreinte digitale + capteurs des widgets
+fprintd
+libpam-fprintd
+ksystemstats
+qml6-module-org-kde-ksysguard

@@ -1,0 +1,8 @@
+{
+    "KPlugin": {
+        "Authors": [ { "Name": "NounoursCorp" } ],
+        "Id": "NounoursOS-Lavande",
+        "License": "CC-BY-SA-4.0",
+        "Name": "NounoursOS Lavande"
+    }
+}

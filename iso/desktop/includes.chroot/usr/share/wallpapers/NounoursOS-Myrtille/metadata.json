@@ -1,0 +1,8 @@
+{
+    "KPlugin": {
+        "Authors": [ { "Name": "NounoursCorp" } ],
+        "Id": "NounoursOS-Myrtille",
+        "License": "CC-BY-SA-4.0",
+        "Name": "NounoursOS Myrtille"
+    }
+}

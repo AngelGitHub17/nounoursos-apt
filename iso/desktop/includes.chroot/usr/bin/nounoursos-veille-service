@@ -1,0 +1,11 @@
+#!/bin/bash
+# NounoursOS — lance l'écran de veille après N minutes d'inactivité (Wayland/KWin,
+# protocole ext-idle-notify via swayidle). Réglages : ~/.config/nounoursos/veille.conf
+CONF="${XDG_CONFIG_HOME:-$HOME/.config}/nounoursos/veille.conf"
+active=$(sed -n 's/^active *= *//p' "$CONF" 2>/dev/null | tail -1)
+delai=$(sed -n 's/^delai *= *//p' "$CONF" 2>/dev/null | tail -1)
+[ "${active:-true}" = "true" ] || exit 0
+[ -n "$WAYLAND_DISPLAY" ] || exit 0
+command -v swayidle >/dev/null || exit 0
+case "$delai" in ''|*[!0-9]*) delai=5 ;; esac
+exec swayidle -w timeout $((delai * 60)) 'nounoursos-veille --auto'

@@ -48,8 +48,9 @@ DARK = dict(bg="#1C1825", side="#221D2D", card="#2A2436", border="#3A3247",
             text="#F4EFF7", sub="#A79FB0", hover="#332C40", sel=HONEY,
             seltext="#FFFFFF", field="#2A2436")
 
-ACCENTS = [("Miel", "#C9864B"), ("Bleu", "#3D7EDB"), ("Violet", "#7E57C2"),
-           ("Rose", "#D9568C"), ("Vert", "#3FA36B"), ("Graphite", "#6B6478")]
+# Teintes NounoursOS : chacune a ses schémas de couleurs (clair/sombre) et son fond d'écran
+ACCENTS = [("Miel", "#C9864B"), ("Myrtille", "#3D7EDB"), ("Lavande", "#7E57C2"),
+           ("Framboise", "#D9568C"), ("Menthe", "#3FA36B"), ("Graphite", "#6B6478")]
 
 
 def is_dark():
@@ -59,7 +60,8 @@ def is_dark():
     cfg = configparser.ConfigParser(strict=False, interpolation=None)
     try:
         cfg.read(os.path.expanduser("~/.config/kdeglobals"))
-        return "dark" in cfg.get("General", "ColorScheme", fallback="").lower()
+        nom = cfg.get("General", "ColorScheme", fallback="").lower()
+        return "dark" in nom or "sombre" in nom
     except Exception:
         return False
 
@@ -502,16 +504,38 @@ def write_conf(name, values):
         cfg.write(f)
 
 
+def teinte_de(accent):
+    """Nom de la teinte NounoursOS pour une couleur d'accent (Miel par défaut)."""
+    for nom, col in ACCENTS:
+        if accent and col.lower() == accent.lower():
+            return nom
+    return "Miel"
+
+
 def apply_color_scheme(dark, accent=None):
-    scheme = "BreezeDark" if dark else "BreezeLight"
-    cmd = ["plasma-apply-colorscheme", scheme]
-    if accent:
-        cmd += ["--accent-color", accent]
-    spawn(cmd)
+    """Applique le schéma NounoursOS de la teinte (clair ou sombre)."""
+    nom = teinte_de(accent or read_conf("apparence.conf", {"accent": HONEY}).get("accent"))
+    spawn(["plasma-apply-colorscheme", f"NounoursOS{nom}{'Sombre' if dark else 'Clair'}"])
 
 
 def apply_accent(accent):
-    spawn(["plasma-apply-colorscheme", "--accent-color", accent])
+    apply_color_scheme(is_dark(), accent)
+
+
+def fond_anime(teinte=None, actif=True):
+    """Active (ou retire) le fond d'écran animé NounoursOS sur tous les bureaux."""
+    if not actif:
+        plasma_script("desktops().forEach(function(d){ d.wallpaperPlugin = 'org.kde.image'; })")
+        return
+    plasma_script("desktops().forEach(function(d){ d.wallpaperPlugin = 'org.nounoursos.fond';"
+                  " d.currentConfigGroup = ['Wallpaper', 'org.nounoursos.fond', 'General'];"
+                  " d.writeConfig('Teinte', '%s'); d.reloadConfig(); })" % (teinte or "Miel"))
+
+
+def plasma_query(js):
+    """Exécute un script Plasma et renvoie ce qu'il affiche avec print()."""
+    return run(["gdbus", "call", "--session", "--dest", "org.kde.plasmashell", "--object-path",
+                "/PlasmaShell", "--method", "org.kde.PlasmaShell.evaluateScript", js], timeout=5)
 
 
 def plasma_script(js):

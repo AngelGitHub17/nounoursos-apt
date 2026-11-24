@@ -22,8 +22,8 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QHBoxLayout, QV
 
 from . import (label, button, Card, SettingRow, Toggle, ChoiceCard, Swatch, tile_icon,
                logo_pixmap, colors, stylesheet, run, spawn, has, open_kcm, root_helper,
-               user_info, os_release, read_conf, write_conf, apply_color_scheme, apply_accent,
-               plasma_script, is_dark, ACCENTS, HONEY, LNF, WALLPAPERS, DEMO, CONFIG_DIR, DATA)
+               user_info, os_release, read_conf, write_conf, apply_color_scheme, apply_accent, fond_anime, teinte_de,
+               plasma_script, plasma_query, is_dark, ACCENTS, HONEY, LNF, WALLPAPERS, DEMO, CONFIG_DIR, DATA)
 from . import updates as U
 from . import kcm as K
 from .maj import CheckThread
@@ -70,8 +70,12 @@ SECTIONS = [
      ("raccourcis", "Raccourcis clavier", "preferences-desktop-keyboard-shortcut", GREY, "R", "kcm_keys",
       "", "touches combinaison"),
      ("recherche", "Recherche", "system-search", GREY, "R", "kcm_plasmasearch", "", "krunner spotlight")],
-    [("verrouillage", "Écran de verrouillage", "system-lock-screen", GREY, "V", "kcm_screenlocker", "",
+    [("veille", "Écran de veille", "preferences-desktop-screensaver", "#5B5BD6", "V", None, "",
+      "economiseur screensaver horloge inactivite"),
+     ("verrouillage", "Écran de verrouillage", "system-lock-screen", GREY, "V", "kcm_screenlocker", "",
       "mot de passe veille"),
+     ("empreinte", "Empreinte et visage", "preferences-desktop-user-password", PINK, "E", None, "",
+      "empreinte digitale doigt touch id visage howdy deverrouillage"),
      ("utilisateurs", "Utilisateurs", "preferences-system-users|system-users", GREY, "U", "kcm_users", "",
       "compte mot de passe photo"),
      ("connexion", "Écran de connexion", "preferences-system-login", GREY, "C", "kcm_sddm", "",
@@ -680,7 +684,7 @@ class Settings(QMainWindow):
         card.add(w)
         pg.body.addWidget(card)
 
-        pg.body.addWidget(label("COULEUR D'ACCENTUATION", "section"))
+        pg.body.addWidget(label("TEINTE", "section"))
         acc = Card(margins=(16, 12, 16, 12))
         r2 = QHBoxLayout()
         cur = read_conf("apparence.conf", {"accent": HONEY}).get("accent")
@@ -693,6 +697,9 @@ class Settings(QMainWindow):
         w2 = QWidget()
         w2.setLayout(r2)
         acc.add(w2)
+        assortir = Toggle(read_conf("apparence.conf", {"assortir": "true"}).get("assortir") == "true")
+        assortir.toggled.connect(lambda on: write_conf("apparence.conf", {"assortir": str(on).lower()}))
+        acc.add(SettingRow("Assortir le fond d'écran", "Change aussi le fond selon la teinte choisie.", assortir))
         pg.body.addWidget(acc)
 
         more = Card()
@@ -709,24 +716,55 @@ class Settings(QMainWindow):
         write_conf("apparence.conf", {"theme": "sombre" if dark else "clair"})
 
     def _set_accent(self, col):
-        apply_accent(col)
         write_conf("apparence.conf", {"accent": col})
+        apply_accent(col)
+        conf = read_conf("apparence.conf", {"assortir": "true", "fond": "image"})
+        if conf.get("assortir") != "true":
+            return
+        nom = teinte_de(col)
+        if conf.get("fond") == "anime":
+            fond_anime(nom)
+        else:
+            d = os.path.join(WALLPAPERS, "NounoursOS" if nom == "Miel" else "NounoursOS-" + nom)
+            if os.path.isdir(d):
+                spawn(["plasma-apply-wallpaperimage", d])
 
     # Fond d'écran ---------------------------------------------------------------
     def page_fond(self):
         pg = page("Fond d'écran")
+        anime = Card()
+        conf = read_conf("apparence.conf", {"fond": "image", "accent": HONEY})
+        t = Toggle(conf.get("fond") == "anime")
+
+        def basculer(on):
+            write_conf("apparence.conf", {"fond": "anime" if on else "image"})
+            fond_anime(teinte_de(read_conf("apparence.conf", {"accent": HONEY}).get("accent")), on)
+        t.toggled.connect(basculer)
+        anime.add(SettingRow("Fond animé NounoursOS", "Lumières qui dérivent doucement aux couleurs de votre "
+                             "teinte. Choisir une image ci-dessous le désactive.", t,
+                             real_icon("", 30, key="fond")))
+        self._fond_toggle = t
+        pg.body.addWidget(anime)
+        pg.body.addWidget(label("IMAGES", "section"))
         grid_w = QWidget()
         grid = QGridLayout(grid_w)
         grid.setSpacing(14)
         grp = QButtonGroup(self)
         for i, (name, target, thumb) in enumerate(self._wallpapers()):
             c = ChoiceCard(name, QPixmap(thumb), w=196, h=112)
-            c.clicked.connect(lambda _=False, t=target: spawn(["plasma-apply-wallpaperimage", t]))
+            c.clicked.connect(lambda _=False, t=target: self._set_image(t))
             grp.addButton(c)
             grid.addWidget(c, i // 3, i % 3)
         pg.body.addWidget(grid_w)
         pg.body.addWidget(button("Ajouter une photo…", None, self._pick_wallpaper), 0, Qt.AlignmentFlag.AlignLeft)
         return finish(pg)
+
+    def _set_image(self, chemin):
+        write_conf("apparence.conf", {"fond": "image"})
+        self._fond_toggle.blockSignals(True)
+        self._fond_toggle.setChecked(False)
+        self._fond_toggle.blockSignals(False)
+        spawn(["plasma-apply-wallpaperimage", chemin])
 
     def _wallpapers(self):
         out = []
@@ -736,7 +774,7 @@ class Settings(QMainWindow):
                 shot = os.path.join(d, "contents", "screenshot.png")
                 thumb = shot if os.path.exists(shot) else (imgs[0] if imgs else None)
                 if thumb:
-                    out.append((os.path.basename(d), d, thumb))
+                    out.append((os.path.basename(d).replace("NounoursOS-", ""), d, thumb))
             elif d.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
                 out.append((os.path.splitext(os.path.basename(d))[0], d, d))
         out.sort(key=lambda x: x[0] != "NounoursOS")
@@ -747,7 +785,7 @@ class Settings(QMainWindow):
         f, _ = QFileDialog.getOpenFileName(self, "Choisir une image", os.path.expanduser("~/Images"),
                                            "Images (*.png *.jpg *.jpeg *.webp)")
         if f:
-            spawn(["plasma-apply-wallpaperimage", f])
+            self._set_image(f)
 
     # Bureau et Dock -------------------------------------------------------------
     def page_bureau(self):
@@ -791,6 +829,28 @@ class Settings(QMainWindow):
             "panels().forEach(function(p){ if (p.location == 'bottom') p.height = %d; })" % size.value()))
         opts.add(SettingRow("Taille", None, size))
         pg.body.addWidget(opts)
+
+        pg.body.addWidget(label("SUR LE BUREAU", "section"))
+        wid = Card()
+        for plugin, titre, sous, y, w, h in (
+                ("org.nounoursos.horloge", "Horloge", "Grande heure et date, en haut à droite", 2, 22, 10),
+                ("org.nounoursos.moniteur", "Moniteur", "Processeur, mémoire, disque, température, réseau", 13, 18, 11)):
+            present = DEMO or "true" in plasma_query(
+                "print(desktops().some(function(d){ return d.widgets('%s').length > 0; }))" % plugin)
+            t = Toggle(present)
+
+            def basculer(on, plugin=plugin, y=y, w=w, h=h):
+                if on:
+                    plasma_script("desktops().forEach(function(d){ if (!d.widgets('%s').length) {"
+                                  " var g = screenGeometry(d.screen); var u = gridUnit;"
+                                  " d.addWidget('%s', g.width - (%d + 3) * u, %d * u, %d * u, %d * u); } })"
+                                  % (plugin, plugin, w, y, w, h))
+                else:
+                    plasma_script("desktops().forEach(function(d){ d.widgets('%s').forEach("
+                                  "function(x){ x.remove(); }); })" % plugin)
+            t.toggled.connect(basculer)
+            wid.add(SettingRow(titre, sous, t))
+        pg.body.addWidget(wid)
         return finish(pg)
 
     # Mise à jour ------------------------------------------------------------------
@@ -866,6 +926,172 @@ class Settings(QMainWindow):
             self.maj_title.setText("NounoursOS est à jour")
             self.maj_sub.setText(f"NounoursOS {rel.get('VERSION_ID', '')} « {rel.get('NOUNOURSOS_CODENAME', '')} »")
             self.maj_btn.setText("Rechercher des mises à jour")
+
+    # Empreinte et visage ------------------------------------------------------------
+    DOIGTS = [("right-index-finger", "Index droit"), ("right-middle-finger", "Majeur droit"),
+              ("right-thumb", "Pouce droit"), ("left-index-finger", "Index gauche"),
+              ("left-middle-finger", "Majeur gauche"), ("left-thumb", "Pouce gauche")]
+
+    def page_empreinte(self):
+        from PyQt6.QtWidgets import QComboBox
+        pg = page("Empreinte et visage",
+                  "Déverrouillez l'ordinateur et validez les demandes de mot de passe d'un simple doigt.")
+        login, _ = user_info()
+        info = "Lecteur détecté\n- #1 : Index droit" if DEMO else run(["fprintd-list", login], timeout=8)
+        lecteur = bool(info) and "No devices" not in info and "Impossible" not in info
+        enregistres = [nom for code, nom in self.DOIGTS if code in info]
+
+        card = Card()
+        etat = ("Aucun lecteur d'empreinte détecté sur cet ordinateur." if not lecteur else
+                ("Empreintes enregistrées : " + ", ".join(enregistres)) if enregistres else
+                "Lecteur prêt, aucune empreinte enregistrée.")
+        card.add(SettingRow("Empreinte digitale", etat, None, real_icon("", 30, key="empreinte")))
+        pg.body.addWidget(card)
+
+        if lecteur:
+            pg.body.addWidget(label("AJOUTER UNE EMPREINTE", "section"))
+            enr = Card(margins=(16, 14, 16, 14))
+            box = QWidget()
+            v = QVBoxLayout(box)
+            v.setContentsMargins(0, 0, 0, 0)
+            row = QHBoxLayout()
+            choix = QComboBox()
+            for code, nom in self.DOIGTS:
+                choix.addItem(nom, code)
+            row.addWidget(choix)
+            go = button("Enregistrer", "primary", None)
+            row.addWidget(go)
+            row.addStretch()
+            v.addLayout(row)
+            self.emp_msg = label("Posez puis levez le doigt plusieurs fois sur le lecteur quand c'est demandé.",
+                                 "sub", wrap=True)
+            v.addWidget(self.emp_msg)
+            from PyQt6.QtWidgets import QProgressBar
+            self.emp_prog = QProgressBar()
+            self.emp_prog.setRange(0, 100)
+            self.emp_prog.hide()
+            v.addWidget(self.emp_prog)
+            enr.add(box)
+            pg.body.addWidget(enr)
+            go.clicked.connect(lambda: self._enroler(choix.currentData(), go))
+            if enregistres:
+                pg.body.addWidget(button("Supprimer toutes mes empreintes", None,
+                                         lambda: (spawn(["fprintd-delete", login]),
+                                                  self.emp_msg.setText("Empreintes supprimées."))),
+                                  0, Qt.AlignmentFlag.AlignLeft)
+
+        pg.body.addWidget(label("UTILISER L'EMPREINTE POUR", "section"))
+        usage = Card()
+        pam_on = DEMO or "pam_fprintd" in open("/etc/pam.d/common-auth").read() \
+            if os.path.exists("/etc/pam.d/common-auth") else False
+        t = Toggle(pam_on)
+
+        def set_pam(on):
+            if not root_helper("empreinte-pam", "on" if on else "off"):
+                t.blockSignals(True)
+                t.setChecked(not on)
+                t.blockSignals(False)
+        t.toggled.connect(set_pam)
+        usage.add(SettingRow("Ouverture de session et demandes de mot de passe",
+                             "Connexion, sudo, installations… Le mot de passe reste toujours possible.", t))
+        lock = SettingRow("Écran de verrouillage", "Réglé dans « Écran de verrouillage ».", None, chevron=True)
+        lock.clicked.connect(lambda: self.select("verrouillage"))
+        usage.add(lock)
+        pg.body.addWidget(usage)
+
+        pg.body.addWidget(label("RECONNAISSANCE DU VISAGE", "section"))
+        face = Card()
+        ft = Toggle(False)
+        ft.setEnabled(False)
+        face.add(SettingRow("Déverrouiller avec le visage",
+                            "Nécessite une webcam infrarouge (type Windows Hello). Arrive dans une "
+                            "prochaine version de NounoursOS.", ft))
+        pg.body.addWidget(face)
+        return finish(pg)
+
+    def _enroler(self, doigt, bouton):
+        login, _ = user_info()
+        from PyQt6.QtCore import QProcess
+        self.emp_prog.setValue(0)
+        self.emp_prog.show()
+        bouton.setEnabled(False)
+        self.emp_msg.setText("Posez le doigt sur le lecteur…")
+        proc = QProcess(self)
+        self._emp_proc = proc
+        etapes = {"n": 0}
+        messages = {
+            "enroll-stage-passed": "Bien ! Levez le doigt puis reposez-le.",
+            "enroll-retry-scan": "Encore une fois, s'il vous plaît.",
+            "enroll-swipe-too-short": "Glissez le doigt plus lentement.",
+            "enroll-finger-not-centered": "Centrez le doigt sur le lecteur.",
+            "enroll-remove-and-retry": "Levez le doigt et réessayez.",
+            "enroll-duplicate": "Cette empreinte est déjà enregistrée.",
+            "enroll-completed": "Empreinte enregistrée ✓",
+            "enroll-failed": "L'enregistrement a échoué. Réessayez.",
+        }
+
+        def lire():
+            for line in bytes(proc.readAllStandardOutput()).decode(errors="ignore").splitlines():
+                for code, msg in messages.items():
+                    if code in line:
+                        self.emp_msg.setText(msg)
+                        if code == "enroll-stage-passed":
+                            etapes["n"] += 1
+                            self.emp_prog.setValue(min(95, etapes["n"] * 12))
+                        if code == "enroll-completed":
+                            self.emp_prog.setValue(100)
+
+        def fini(code, _st):
+            bouton.setEnabled(True)
+            if code != 0 and self.emp_prog.value() < 100:
+                self.emp_msg.setText(messages["enroll-failed"])
+        proc.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+        proc.readyReadStandardOutput.connect(lire)
+        proc.finished.connect(fini)
+        proc.start("fprintd-enroll", ["-f", doigt, login])
+
+    # Écran de veille --------------------------------------------------------------
+    def page_veille(self):
+        pg = page("Écran de veille",
+                  "Après quelques minutes sans activité : horloge, ourson et état de l'ordinateur. "
+                  "Il ne se lance pas pendant une vidéo ou un jeu.")
+        conf = read_conf("veille.conf", {"active": "true", "delai": "5"})
+        card = Card()
+        actif = Toggle(conf.get("active") == "true")
+        card.add(SettingRow("Activer l'écran de veille", None, actif, real_icon("", 30, key="veille")))
+        delai = QSlider(Qt.Orientation.Horizontal)
+        delai.setRange(1, 60)
+        delai.setValue(int(conf.get("delai", "5") or 5))
+        delai.setFixedWidth(220)
+        val = label(f"{delai.value()} min", "sub")
+        box = QWidget()
+        bl = QHBoxLayout(box)
+        bl.setContentsMargins(0, 0, 0, 0)
+        bl.addWidget(delai)
+        bl.addWidget(val)
+        card.add(SettingRow("Démarrer après", None, box))
+        pg.body.addWidget(card)
+
+        def enregistrer():
+            write_conf("veille.conf", {"active": "true" if actif.isChecked() else "false",
+                                       "delai": delai.value()})
+            # Relance du service d'inactivité avec les nouveaux réglages
+            spawn(["sh", "-c", "pkill -u \"$(id -u)\" -f 'swayidle -w timeout [0-9]+ nounoursos-veille'; "
+                               "nounoursos-veille-service"])
+        actif.toggled.connect(lambda _: enregistrer())
+        delai.valueChanged.connect(lambda v: val.setText(f"{v} min"))
+        delai.sliderReleased.connect(enregistrer)
+
+        row = QHBoxLayout()
+        row.addWidget(button("Aperçu", "primary", lambda: spawn(["nounoursos-veille"])))
+        row.addWidget(label("Bougez la souris ou appuyez sur une touche pour quitter.", "sub"))
+        row.addStretch()
+        rw = QWidget()
+        rw.setLayout(row)
+        pg.body.addWidget(rw)
+        pg.body.addWidget(label("Le verrouillage de la session (mot de passe) se règle dans "
+                                "« Écran de verrouillage ».", "sub", wrap=True))
+        return finish(pg)
 
     # Applications Windows (WinBoat) ---------------------------------------------------
     def page_windows(self):

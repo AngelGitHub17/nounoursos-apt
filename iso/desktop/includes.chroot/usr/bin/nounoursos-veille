@@ -1,0 +1,6 @@
+#!/usr/bin/python3
+# Écran de veille NounoursOS. --fenetre : aperçu ; --auto : lancé sur inactivité.
+import os, sys
+sys.path.insert(0, os.environ.get("NOUNOURSOS_PY", "/usr/lib/nounoursos/python"))
+from nounoursui.veille import main
+sys.exit(main())

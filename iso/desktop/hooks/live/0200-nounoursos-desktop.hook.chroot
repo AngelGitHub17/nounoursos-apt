@@ -46,6 +46,9 @@ if command -v grub-mkfont >/dev/null && [ -f "$F/DejaVuSans.ttf" ]; then
 fi
 ls "$T"/*.pf2 2>/dev/null || echo "(polices GRUB non générées : police par défaut utilisée)"
 
+echo "[NounoursOS] Empreinte digitale : acceptée pour sudo, polkit et la connexion"
+pam-auth-update --package --enable fprintd || true
+
 echo "[NounoursOS] Logithèque : Flathub disponible dans Discover"
 flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo || true
 

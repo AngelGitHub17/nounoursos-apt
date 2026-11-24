@@ -1,0 +1,15 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [ { "Name": "NounoursCorp" } ],
+        "Category": "Date and Time",
+        "Description": "Grande horloge NounoursOS pour le bureau",
+        "Icon": "preferences-system-time",
+        "Id": "org.nounoursos.horloge",
+        "License": "GPL-2.0-or-later",
+        "Name": "Horloge NounoursOS",
+        "Version": "1.0",
+        "Website": "https://nounourscorp.fr"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

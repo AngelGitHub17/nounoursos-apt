@@ -1,3 +1,7 @@
+[Daemon]
+# Verrouillage après l'écran de veille (5 min) : 15 min
+Timeout=15
+
 [Greeter]
 WallpaperPlugin=org.kde.image
 

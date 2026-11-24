@@ -8,6 +8,11 @@ for (var i = 0; i < desks.length; i++) {
     desks[i].wallpaperPlugin = "org.kde.image";
     desks[i].currentConfigGroup = ["Wallpaper", "org.kde.image", "General"];
     desks[i].writeConfig("Image", "file:///usr/share/wallpapers/NounoursOS/");
+    // Widgets NounoursOS : horloge et moniteur, en haut à droite
+    var geo = screenGeometry(desks[i].screen);
+    var u = gridUnit;
+    desks[i].addWidget("org.nounoursos.horloge", geo.width - 25 * u, 4 * u, 22 * u, 10 * u);
+    desks[i].addWidget("org.nounoursos.moniteur", geo.width - 21 * u, (4 + 11) * u, 18 * u, 11 * u);
 }
 
 // --- Barre du haut ------------------------------------------------------------

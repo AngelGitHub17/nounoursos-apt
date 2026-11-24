@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Écran de veille NounoursOS (service)
+Exec=nounoursos-veille-service
+Icon=nounoursos
+OnlyShowIn=KDE;
+X-KDE-autostart-phase=2
+NoDisplay=true
