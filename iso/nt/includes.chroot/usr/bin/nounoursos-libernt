@@ -101,6 +101,10 @@ def telecharger():
         # Un peu de place en plus pour installer des logiciels dans LiberNT
         subprocess.run(["qemu-img", "resize", "-q", sortie, "+8G"], check=False)
         os.replace(sortie, DISQUE)
+        try:
+            os.unlink(os.path.join(DOSSIER, "uefi-vars.fd"))   # nouveau disque : variables UEFI neuves
+        except OSError:
+            pass
         with open(INFO, "w") as f:
             json.dump({"version": version, "fichier": nom, "date": time.time()}, f)
         dire("termine")
@@ -116,15 +120,33 @@ def _options(fenetre=True):
         ram_mo = 4096
     memoire = max(1024, min(4096, ram_mo // 4))
     kvm = os.access("/dev/kvm", os.R_OK | os.W_OK)
-    opts = ["qemu-system-x86_64", "-name", "LiberNT", "-machine", "pc",
+    # Même machine que les tests du projet LiberNT : q35 (disque AHCI) et UEFI (OVMF)
+    opts = ["qemu-system-x86_64", "-name", "LiberNT", "-machine", "q35",
             "-accel", "kvm" if kvm else "tcg", "-cpu", "host" if kvm else "max",
-            "-smp", "2", "-m", str(memoire),
-            "-drive", f"file={DISQUE},if=ide,format=qcow2",
-            "-vga", "std", "-usb", "-device", "usb-tablet",
-            "-nic", "user,model=e1000", "-rtc", "base=localtime"]
+            "-smp", "2", "-m", str(memoire)]
+    code, vars_modele = _ovmf()
+    if code:
+        vars_ = os.path.join(DOSSIER, "uefi-vars.fd")
+        if not os.path.exists(vars_):
+            shutil.copyfile(vars_modele, vars_)
+        opts += ["-drive", f"if=pflash,format=raw,readonly=on,file={code}",
+                 "-drive", f"if=pflash,format=raw,file={vars_}"]
+    opts += ["-drive", f"if=none,id=disque,format=qcow2,file={DISQUE}", "-device", "ide-hd,drive=disque",
+             "-vga", "std", "-usb", "-device", "usb-tablet",
+             "-nic", "user,model=e1000", "-rtc", "base=localtime"]
     if fenetre:
         opts += ["-display", "gtk,zoom-to-fit=on,show-menubar=off"]
     return opts, kvm
+
+
+def _ovmf():
+    """Micrologiciel UEFI (paquet ovmf) : (code, modèle des variables) ou (None, None)."""
+    for code, vars_ in (("/usr/share/OVMF/OVMF_CODE_4M.fd", "/usr/share/OVMF/OVMF_VARS_4M.fd"),
+                        ("/usr/share/OVMF/OVMF_CODE.fd", "/usr/share/OVMF/OVMF_VARS.fd"),
+                        ("/usr/share/qemu/OVMF_CODE.fd", "/usr/share/qemu/OVMF_VARS.fd")):
+        if os.path.exists(code) and os.path.exists(vars_):
+            return code, vars_
+    return None, None
 
 
 def demarrer():

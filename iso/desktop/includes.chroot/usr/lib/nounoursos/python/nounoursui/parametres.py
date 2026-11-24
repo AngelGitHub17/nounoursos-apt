@@ -7,6 +7,7 @@
 - « Tous les réglages » liste chaque module installé : rien n'oblige à sortir.
 """
 import glob
+import json
 import os
 import time
 import re
@@ -1467,9 +1468,10 @@ class Settings(QMainWindow):
     # Applications Windows (WinBoat) ---------------------------------------------------
     def page_windows(self):
         pg = page("Applications Windows",
-                  "Deux façons de lancer vos logiciels Windows : directement avec la couche NT (Wine), "
-                  "ou dans un vrai Windows avec WinBoat pour ceux qui résistent.")
+                  "Plusieurs façons de lancer vos logiciels Windows : directement avec la couche NT (Wine), "
+                  "dans LiberNT, un système NT libre, ou dans un vrai Windows avec WinBoat.")
         self._section_nt(pg)
+        self._section_libernt(pg)
         pg.body.addWidget(label("WINBOAT : UN VRAI WINDOWS", "section"))
         pg.body.addWidget(label("WinBoat fait tourner Windows en arrière-plan et affiche ses logiciels "
                                 "dans des fenêtres NounoursOS, comme des applications normales.", "sub", wrap=True))
@@ -1545,6 +1547,93 @@ class Settings(QMainWindow):
         w = QWidget()
         w.setLayout(row)
         pg.body.addWidget(w)
+
+    # LiberNT : système NT libre (image officielle, dans une fenêtre) -------------------
+    def _section_libernt(self, pg):
+        outil = shutil.which("nounoursos-libernt")
+        if not (outil or DEMO):
+            return
+        from PyQt6.QtWidgets import QProgressBar
+        info = {"pret": True, "version": "nt10.0-043", "taille": 2_900_000_000, "qemu": True, "kvm": True} \
+            if DEMO else {}
+        if not DEMO:
+            try:
+                info = json.loads(run([outil, "etat"], timeout=10) or "{}")
+            except ValueError:
+                info = {}
+        pg.body.addWidget(label("LIBERNT : UN SYSTÈME NT LIBRE", "section"))
+        pg.body.addWidget(label("LiberNT est un système d'exploitation libre compatible avec Windows, développé "
+                                "par un projet indépendant à partir de ReactOS. Il s'ouvre ici dans une fenêtre, "
+                                "sans licence Windows. Encore en développement : idéal pour essayer, pas pour "
+                                "vos logiciels importants.", "sub", wrap=True))
+        card = Card()
+        if info.get("pret"):
+            detail = f"Version {info.get('version') or 'inconnue'} · {info.get('taille', 0) / 2 ** 30:.1f} Go"
+            if not info.get("kvm"):
+                detail += " · sans accélération (lent)"
+            etat = "Prêt à démarrer"
+        else:
+            detail = "Environ 1 Go à télécharger depuis les versions publiées par le projet LiberNT."
+            etat = "Pas encore téléchargé"
+        self.lnt_ligne = SettingRow(etat, detail, None, real_icon("", 30, key="windows"))
+        card.add(self.lnt_ligne)
+        pg.body.addWidget(card)
+        row = QHBoxLayout()
+        if info.get("pret"):
+            row.addWidget(button("Démarrer LiberNT", "primary", lambda: spawn([outil or "true", "demarrer"])))
+            row.addWidget(button("Mettre à jour l'image", None, lambda: self._libernt_telecharger(outil)))
+            row.addWidget(button("Supprimer", None, lambda: (run([outil, "supprimer"]) if outil else None,
+                                                             self.open_page("windows"))))
+        else:
+            self.lnt_btn = button("Télécharger LiberNT", "primary", lambda: self._libernt_telecharger(outil))
+            row.addWidget(self.lnt_btn)
+        row.addStretch()
+        w = QWidget()
+        w.setLayout(row)
+        pg.body.addWidget(w)
+        self.lnt_prog = QProgressBar()
+        self.lnt_prog.setRange(0, 100)
+        self.lnt_prog.hide()
+        pg.body.addWidget(self.lnt_prog)
+        self.lnt_msg = label("", "sub", wrap=True)
+        pg.body.addWidget(self.lnt_msg)
+
+    def _libernt_telecharger(self, outil):
+        from PyQt6.QtCore import QProcess
+        if DEMO or not outil:
+            self.lnt_msg.setText("[démo] téléchargement")
+            return
+        self.lnt_prog.setValue(0)
+        self.lnt_prog.show()
+        self.lnt_msg.setText("Recherche de la dernière version de LiberNT…")
+        proc = QProcess(self)
+        self._lnt_proc = proc
+        erreur = {"txt": ""}
+
+        def lire():
+            for line in bytes(proc.readAllStandardOutput()).decode(errors="ignore").splitlines():
+                if line.startswith("progression:"):
+                    self.lnt_prog.setValue(int(line.split(":")[1]))
+                    self.lnt_msg.setText("Téléchargement de LiberNT…")
+                elif line.startswith("etape:"):
+                    self.lnt_prog.setRange(0, 0)
+                    self.lnt_msg.setText(line.split(":", 1)[1])
+                elif line.startswith("version:"):
+                    self.lnt_msg.setText("Téléchargement de LiberNT " + line.split(":", 1)[1] + "…")
+                elif line.startswith("erreur:"):
+                    erreur["txt"] = line.split(":", 1)[1]
+
+        def fini(code, _st):
+            self.lnt_prog.hide()
+            self.lnt_prog.setRange(0, 100)
+            if code == 0:
+                self.open_page("windows")
+            else:
+                self.lnt_msg.setText("Le téléchargement a échoué" + (f" : {erreur['txt']}" if erreur["txt"] else
+                                                                      ". Vérifiez votre connexion."))
+        proc.readyReadStandardOutput.connect(lire)
+        proc.finished.connect(fini)
+        proc.start(outil, ["telecharger"])
 
     def _ouvrir_exe(self):
         from PyQt6.QtWidgets import QFileDialog
