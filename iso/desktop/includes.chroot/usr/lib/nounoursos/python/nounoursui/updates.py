@@ -1,6 +1,7 @@
 """Moteur des mises à jour NounoursOS.
 
-- Recherche : PackageKit (`pkcon refresh`) puis `apt list --upgradable`.
+- Recherche : `apt-get update` via l'action « maj-rechercher » (pkexec, sans mot de passe,
+  délais bornés), repli sur PackageKit ; puis `apt list --upgradable`.
 - Installation : PackageKit (`pkcon update`), maintenant ou au redémarrage
   (« offline update » : téléchargement maintenant, installation au reboot).
 - Les mises à jour du paquet `nounoursos-release` (dépôt NounoursCorp) sont
@@ -108,15 +109,124 @@ def human_size(n):
 _LINE = re.compile(r"^(\S+)/(\S+)\s+(\S+)\s+\S+\s+\[(?:upgradable from|pouvant être mis à jour depuis)\s*:\s*(\S+)\]")
 
 
-def refresh():
-    """Met à jour la liste des paquets (sans droits root, via PackageKit)."""
+RECHERCHE_ACTION = "fr.nounourscorp.nounoursos.maj-rechercher"
+RECHERCHE_BIN = "/usr/libexec/nounoursos/nounoursos-maj-recherche"
+RECHERCHE_LOG = os.path.join(CACHE_DIR, "recherche.log")
+RECHERCHE_MAX = 330          # secondes, au-delà on abandonne
+
+
+def _stream(cmd, timeout, progress):
+    """Lance cmd, transmet chaque ligne à progress(), renvoie (code, sortie)."""
+    import subprocess
+    import threading
+    lines = []
+    try:
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                             env={**os.environ, "LC_ALL": "C"}, bufsize=1)
+    except OSError as e:
+        return 127, str(e)
+    killer = threading.Timer(timeout, p.kill)
+    killer.start()
+    try:
+        for line in p.stdout:
+            line = line.rstrip()
+            lines.append(line)
+            if progress:
+                msg = _statut(line)
+                if msg:
+                    progress(msg)
+        rc = p.wait()
+    finally:
+        killer.cancel()
+    if rc < 0:                      # tué par le minuteur
+        rc = 124
+    return rc, "\n".join(lines)
+
+
+def _statut(line):
+    """Ligne APT/PackageKit -> message lisible (ou None)."""
+    if line.startswith("dlstatus:"):
+        parts = line.split(":", 3)
+        try:
+            return f"Téléchargement de la liste des paquets… {float(parts[2]):.0f} %"
+        except (IndexError, ValueError):
+            return "Téléchargement de la liste des paquets…"
+    if "Waiting for cache lock" in line or "Could not get lock" in line or "lock" in line.lower() and "held" in line:
+        m = re.search(r"held by process \d+ \(([^)]+)\)", line)
+        return f"Un autre outil de mise à jour travaille ({m.group(1) if m else 'APT'}), attente…"
+    if line.startswith(("Hit:", "Get:", "Ign:")):
+        host = re.search(r"https?://([^/ ]+)", line)
+        return f"Connexion à {host.group(1)}…" if host else None
+    if line.startswith("Reading package lists"):
+        return "Lecture de la liste des paquets…"
+    if line.startswith("Status:"):
+        st = line.split(":", 1)[1].strip()
+        return STATUS_FR.get(st, None)
+    return None
+
+
+def expliquer(rc, out):
+    """Message clair pour un échec de recherche."""
+    if rc == 124:
+        return ("La recherche a pris trop de temps (connexion lente, ou un autre outil de mise à jour "
+                "bloque). Réessayez dans quelques minutes.")
+    if "lock" in out and ("held" in out or "Could not get lock" in out):
+        return "Un autre outil de mise à jour est en cours. Réessayez dans quelques minutes."
+    if re.search(r"Temporary failure resolving|Could not resolve|Network is unreachable|"
+                 r"Connection timed out|Could not connect", out):
+        return "Les serveurs de mise à jour sont injoignables. Vérifiez votre connexion à Internet."
+    if re.search(r"NO_PUBKEY|EXPKEYSIG|is not signed|signatures were invalid|sqv", out):
+        return ("La signature d'un dépôt est invalide : la liste n'a pas été mise à jour par sécurité. "
+                "Ouvrez le journal pour voir lequel.")
+    if re.search(r"404\s+Not Found|does not have a Release file", out):
+        return "Un dépôt de mises à jour est introuvable. Ouvrez le journal pour voir lequel."
+    if "Failed to obtain authentication" in out or rc in (126, 127):
+        return "Autorisation refusée pour rechercher les mises à jour."
+    return "La recherche des mises à jour a échoué. Ouvrez le journal pour le détail."
+
+
+def _autorise_sans_mdp():
+    """Vrai si polkit autorise la recherche sans demander de mot de passe."""
+    if not has("pkcheck"):
+        return False
+    r = run(["sh", "-c", f"pkcheck --action-id {RECHERCHE_ACTION} --process $PPID >/dev/null 2>&1; echo $?"],
+            timeout=10)
+    return r.strip() == "0"
+
+
+def refresh(progress=None):
+    """Rafraîchit la liste des paquets. Renvoie (ok, message d'erreur, journal)."""
     if DEMO:
-        time.sleep(1.2)
-        return True
-    if has("pkcon"):
-        out = run(["env", "LC_ALL=C", "pkcon", "refresh", "--plain", "--noninteractive"], timeout=600)
-        return "Fatal" not in out
-    return False
+        for m in ("Connexion à angelgithub17.github.io…", "Connexion à deb.debian.org…",
+                  "Lecture de la liste des paquets…"):
+            if progress:
+                progress(m)
+            time.sleep(0.4)
+        return True, "", ""
+    if has("pkexec") and os.path.exists(RECHERCHE_BIN) and _autorise_sans_mdp():
+        rc, out = _stream(["pkexec", "--disable-internal-agent", RECHERCHE_BIN],
+                          RECHERCHE_MAX, progress)
+    elif has("pkcon"):
+        rc, out = _stream(["pkcon", "refresh", "--plain", "--noninteractive"], RECHERCHE_MAX, progress)
+        if rc == 0 and "Fatal" in out:
+            rc = 1
+    else:
+        return False, "Aucun outil de mise à jour disponible.", ""
+    _garder_journal(out)
+    out = out.rsplit("=== essai ", 1)[-1]      # seul le dernier essai compte
+    # apt-get update renvoie 0 même si un dépôt a échoué (« W: Failed to fetch ») : on le signale
+    if rc == 0 and re.search(r"^(E:|W: Failed to fetch|Err:)", out, re.M):
+        return False, expliquer(1, out), out
+    return rc == 0, ("" if rc == 0 else expliquer(rc, out)), out
+
+
+def _garder_journal(out):
+    try:
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        with open(RECHERCHE_LOG, "w") as f:
+            f.write(time.strftime("=== %d/%m/%Y %H:%M:%S\n") + out + "\n")
+    except OSError:
+        pass
 
 
 def list_updates():
@@ -147,12 +257,14 @@ def _fill_sizes(ups):
         u.size = sizes.get(u.name, 0)
 
 
-def check():
+def check(progress=None):
     """Recherche complète + mémorisation pour les autres applis (badge…)."""
-    ok = refresh()
+    ok, erreur, _ = refresh(progress)
+    if progress:
+        progress("Comparaison avec les versions installées…")
     s = list_updates()
-    if not ok and not DEMO:
-        s.error = "La liste des mises à jour n'a pas pu être rafraîchie (connexion ?)."
+    if not ok:
+        s.error = erreur
     if s.new_release:
         s.notes = release_notes(s.new_release)
     save_state(s)

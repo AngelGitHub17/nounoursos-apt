@@ -1,0 +1,21 @@
+#!/bin/bash
+# NounoursOS — rafraîchit la liste des paquets (apt-get update), sans rien installer.
+# Lancé via pkexec sans mot de passe pour la session active
+# (action polkit fr.nounourscorp.nounoursos.maj-rechercher). Ne prend aucun argument.
+# Délais bornés : si un autre outil APT tient le verrou, on patiente 2 min au plus.
+umask 022
+mkdir -p /var/log/nounoursos
+LOG=/var/log/nounoursos/recherche.log
+TMP=$(mktemp)
+trap 'rm -f "$TMP"' EXIT
+: > "$LOG"
+for essai in $(seq 1 24); do
+  echo "=== essai $essai"
+  timeout 300 apt-get -q -o Acquire::Retries=2 -o Acquire::http::Timeout=30 \
+    -o Acquire::https::Timeout=30 -o APT::Status-Fd=1 update 2>&1 | tee "$TMP"
+  rc=${PIPESTATUS[0]}
+  cat "$TMP" >> "$LOG"
+  grep -q "Could not get lock" "$TMP" || exit "$rc"
+  sleep 5
+done
+exit "$rc"

@@ -20,9 +20,19 @@ RENOTIFY_AFTER_H = 24
 
 class CheckThread(QThread):
     done = pyqtSignal(object)
+    etape = pyqtSignal(str)
 
     def run(self):
-        self.done.emit(U.check())
+        try:
+            s = U.check(self.etape.emit)
+        except Exception as e:          # jamais de fenêtre bloquée sur « Recherche… »
+            s = U.load_state()
+            s.error = f"La recherche a échoué ({e.__class__.__name__}). Réessayez."
+            try:
+                U.save_state(s)
+            except OSError:
+                pass
+        self.done.emit(s)
 
 
 def reboot():
@@ -127,9 +137,12 @@ class UpdateWindow(QWidget):
         self.title.setText("Recherche de mises à jour…")
         self.subtitle.setText("Connexion aux serveurs NounoursOS et Debian.")
         self.more.hide()
+        self.notes_card.hide()
+        self.details.hide()
         self.progress.setRange(0, 0)
         self.progress.show()
-        self.status.hide()
+        self.status.setText("Préparation…")
+        self.status.show()
         self._btns(self.b_later)
 
     def show_state(self):
@@ -153,17 +166,25 @@ class UpdateWindow(QWidget):
             self.more.show()
             self.build_details()
             self._btns(self.b_later, self.b_offline, self.b_now)
+        elif s.error:
+            # Échec de la recherche : ne jamais prétendre que le système est à jour
+            self.title.setText("Recherche impossible")
+            self.subtitle.setText(s.error)
+            self.more.setText("Voir le journal")
+            self.more.show()
+            self.details.hide()
+            self.notes_card.hide()
+            self.b_check.setText("Réessayer")
+            self._btns(self.b_check, self.b_later)
         else:
             self.title.setText("NounoursOS est à jour")
             when = time.strftime("%d/%m/%Y à %H:%M", time.localtime(s.checked_at)) if s.checked_at else "jamais"
-            msg = (f"NounoursOS {rel.get('VERSION_ID', '')} « {rel.get('NOUNOURSOS_CODENAME', '')} »"
-                   f" — dernière vérification : {when}")
-            if s.error:
-                msg = s.error
-            self.subtitle.setText(msg)
+            self.subtitle.setText(f"NounoursOS {rel.get('VERSION_ID', '')} « {rel.get('NOUNOURSOS_CODENAME', '')} »"
+                                  f" — dernière vérification : {when}")
             self.more.hide()
             self.details.hide()
             self.notes_card.hide()
+            self.b_check.setText("Rechercher")
             self._btns(self.b_check, self.b_later)
         self._shrink()
 
@@ -202,6 +223,14 @@ class UpdateWindow(QWidget):
         self.details.setWidget(box)
 
     def toggle_details(self):
+        if self.state.error and not self.state.count:
+            try:
+                with open(U.RECHERCHE_LOG) as f:
+                    self.log = f.read().splitlines()
+            except OSError:
+                self.log = ["(pas de journal : la recherche n'a pas démarré)"]
+            self._show_log(U.RECHERCHE_LOG)
+            return
         vis = not self.details.isVisible()
         self.details.setVisible(vis)
         self.more.setText("Masquer les détails" if vis else "Plus d'infos…")
@@ -219,23 +248,25 @@ class UpdateWindow(QWidget):
             return "Un paquet ne peut pas être installé pour le moment (dépendances)."
         return "Une erreur s'est produite pendant l'installation. Le détail est ci-dessous."
 
-    def _show_log(self):
+    def _show_log(self, chemin=None):
         """Affiche les dernières lignes du journal (et les garde dans ~/.cache/nounoursos)."""
         lines = [l for l in self.log if not l.startswith(("dlstatus:", "pmstatus:"))]
         text = "\n".join(lines[-40:]) or "(aucun détail)"
-        try:
-            os.makedirs(CACHE_DIR, exist_ok=True)
-            with open(os.path.join(CACHE_DIR, "maj-erreur.log"), "w") as f:
-                f.write("\n".join(self.log))
-        except OSError:
-            pass
+        if chemin is None:
+            chemin = os.path.join(CACHE_DIR, "maj-erreur.log")
+            try:
+                os.makedirs(CACHE_DIR, exist_ok=True)
+                with open(chemin, "w") as f:
+                    f.write("\n".join(self.log))
+            except OSError:
+                pass
         box = QLabel(text)
         box.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         box.setStyleSheet("font-family: monospace; font-size: 8.5pt; color: #5A4F63;")
         box.setWordWrap(True)
         holder = QWidget()
         v = QVBoxLayout(holder)
-        v.addWidget(label("Détails (journal complet : /var/log/nounoursos/maj.log)", "sub"))
+        v.addWidget(label(f"Détails (journal complet : {chemin})", "sub"))
         v.addWidget(box)
         v.addStretch()
         self.details.setWidget(holder)
@@ -248,9 +279,27 @@ class UpdateWindow(QWidget):
         self.show_checking()
         self.th = CheckThread()
         self.th.done.connect(self._checked)
+        self.th.etape.connect(self._etape)
         self.th.start()
+        # Filet de sécurité : la recherche est bornée à ~5 min, l'écran aussi
+        self._garde = QTimer(self)
+        self._garde.setSingleShot(True)
+        self._garde.timeout.connect(self._trop_long)
+        self._garde.start((U.RECHERCHE_MAX + 60) * 1000)
+
+    def _etape(self, msg):
+        self.status.setText(msg)
+
+    def _trop_long(self):
+        if self.th.isRunning():
+            self.th.done.disconnect()
+            s = U.load_state()
+            s.error = U.expliquer(124, "")
+            self._checked(s)
 
     def _checked(self, s):
+        if getattr(self, "_garde", None):
+            self._garde.stop()
         self.state = s
         self.show_state()
 

@@ -15,4 +15,15 @@
     </defaults>
     <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/nounoursos/nounoursos-root-helper</annotate>
   </action>
+  <!-- Recherche des mises à jour : ne fait que rafraîchir la liste des paquets -->
+  <action id="fr.nounourscorp.nounoursos.maj-rechercher">
+    <description>Rechercher les mises à jour de NounoursOS</description>
+    <message>Un mot de passe est nécessaire pour rechercher les mises à jour.</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>yes</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/nounoursos/nounoursos-maj-recherche</annotate>
+  </action>
 </policyconfig>

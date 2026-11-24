@@ -908,6 +908,7 @@ class Settings(QMainWindow):
         self._maj_th = CheckThread()
         self._maj_th.done.connect(lambda _s: (self.maj_btn.setEnabled(True), self._maj_refresh(),
                                               self.refresh_badge()))
+        self._maj_th.etape.connect(self.maj_sub.setText)
         self._maj_th.start()
 
     def _maj_refresh(self):
