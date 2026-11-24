@@ -370,6 +370,19 @@ def remplacer_images(racine):
             _comme(p(rel), _rendu(ID.logo_svg(), 256, 256))
             fait.append(rel)
 
+    # Logo du menu de démarrage, intégré au chargeur : 48 x 42, RGBA prémultiplié, brut
+    rel = "bootloader/gui/assets/logo.rgba"
+    if os.path.exists(p(rel)) and os.path.getsize(p(rel)) == 48 * 42 * 4:
+        k = 42
+        im = _rendu(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 42" width="48" height="42">'
+                    f'{ID.logo_groupe((48 - k) / 2, 0, k)}</svg>', 48, 42)
+        octets = bytearray()
+        for r, g, b, a in im.getdata():
+            octets += bytes((r * a // 255, g * a // 255, b * a // 255, a))
+        with open(p(rel), "wb") as f:
+            f.write(octets)
+        fait.append(rel)
+
     # Fichiers de marque du dépôt et bannières SVG
     for rel, fond in (("media/graphics/branding/libernt-logo.png", None),
                       ("media/graphics/branding/libernt-banner.png", "#FFFFFF")):
