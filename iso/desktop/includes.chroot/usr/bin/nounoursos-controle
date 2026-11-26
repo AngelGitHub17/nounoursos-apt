@@ -1,0 +1,128 @@
+#!/usr/bin/python3
+"""Centre de contrôle NounoursOS : état et actions rapides (utilisé par le widget).
+
+  nounoursos-controle etat                 JSON : wifi, ssid, bluetooth, ndp, mode, sombre, volume, luminosite
+  nounoursos-controle wifi on|off
+  nounoursos-controle bluetooth on|off
+  nounoursos-controle ndp on|off           Ne pas déranger
+  nounoursos-controle mode travail|jeu|stream|aucun
+  nounoursos-controle sombre on|off
+  nounoursos-controle volume 0-100
+  nounoursos-controle luminosite 0-100
+  nounoursos-controle capture              capture d'une zone de l'écran
+"""
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+
+sys.path.insert(0, os.environ.get("NOUNOURSOS_PY", "/usr/lib/nounoursos/python"))
+from nounoursui import concentration as C  # noqa: E402
+
+BRIGHT = ["org.kde.Solid.PowerManagement", "/org/kde/Solid/PowerManagement/Actions/BrightnessControl",
+          "org.kde.Solid.PowerManagement.Actions.BrightnessControl"]
+
+
+def _sortie(cmd, delai=4):
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=delai,
+                              env={**os.environ, "LC_ALL": "C"}).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+
+
+def _gdbus(service, chemin, methode, *args):
+    out = _sortie(["gdbus", "call", "--session", "--dest", service, "--object-path", chemin,
+                   "--method", methode, *[str(a) for a in args]])
+    m = re.search(r"-?\d+", out)
+    return int(m.group(0)) if m else None
+
+
+def wifi():
+    if not shutil.which("nmcli"):
+        return None, ""
+    on = _sortie(["nmcli", "radio", "wifi"]).strip() == "enabled"
+    ssid = ""
+    for ligne in _sortie(["nmcli", "-t", "-f", "active,ssid", "dev", "wifi"]).splitlines():
+        if ligne.startswith("yes:"):
+            ssid = ligne[4:]
+            break
+    return on, ssid
+
+
+def bluetooth():
+    if not shutil.which("bluetoothctl"):
+        return None
+    out = _sortie(["bluetoothctl", "show"])
+    if "Powered:" not in out:
+        return None                       # pas d'adaptateur
+    return "Powered: yes" in out
+
+
+def volume():
+    out = _sortie(["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"])
+    m = re.search(r"Volume:\s*([\d.]+)", out)
+    if not m:
+        return None, False
+    return round(float(m.group(1)) * 100), "MUTED" in out
+
+
+def luminosite():
+    v = _gdbus(BRIGHT[0], BRIGHT[1], BRIGHT[2] + ".brightness")
+    mx = _gdbus(BRIGHT[0], BRIGHT[1], BRIGHT[2] + ".brightnessMax")
+    if v is None or not mx:
+        return None                       # écran sans réglage (bureau, machine virtuelle)
+    return round(v * 100 / mx)
+
+
+def sombre():
+    from nounoursui import is_dark
+    return is_dark()
+
+
+def etat():
+    d = C.lire()
+    w, ssid = wifi()
+    vol, muet = volume()
+    return {"wifi": w, "ssid": ssid, "bluetooth": bluetooth(), "ndp": C.silence(d), "ndp_seul": d["ndp"],
+            "mode": d["actif"], "modes": [[k, m["nom"], m.get("icone", "")] for k, m in d["modes"].items()],
+            "sombre": sombre(), "volume": vol, "muet": muet, "luminosite": luminosite()}
+
+
+def main(argv):
+    if len(argv) < 2 or argv[1] == "etat":
+        print(json.dumps(etat(), ensure_ascii=False))
+        return 0
+    cmd, val = argv[1], (argv[2] if len(argv) > 2 else "")
+    on = val in ("on", "1", "oui", "true")
+    if cmd == "wifi":
+        subprocess.run(["nmcli", "radio", "wifi", "on" if on else "off"])
+    elif cmd == "bluetooth":
+        subprocess.run(["bluetoothctl", "power", "on" if on else "off"], capture_output=True)
+    elif cmd == "ndp":
+        C.ne_pas_deranger(on)
+    elif cmd == "mode":
+        C.activer(None if val in ("", "aucun") else val)
+    elif cmd == "sombre":
+        from nounoursui import apply_color_scheme
+        apply_color_scheme(on)
+    elif cmd == "volume":
+        v = max(0, min(100, int(val or 0)))
+        subprocess.run(["wpctl", "set-volume", "-l", "1.0", "@DEFAULT_AUDIO_SINK@", f"{v / 100:.2f}"])
+        subprocess.run(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "0"])
+    elif cmd == "luminosite":
+        mx = _gdbus(BRIGHT[0], BRIGHT[1], BRIGHT[2] + ".brightnessMax")
+        if mx:
+            _gdbus(BRIGHT[0], BRIGHT[1], BRIGHT[2] + ".setBrightness", round(int(val or 0) * mx / 100))
+    elif cmd == "capture":
+        subprocess.Popen(["spectacle", "-r"], start_new_session=True)
+    else:
+        print(__doc__)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

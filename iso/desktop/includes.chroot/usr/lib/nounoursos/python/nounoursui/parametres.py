@@ -55,6 +55,8 @@ SECTIONS = [
       "winboat windows exe logiciels office photoshop"),
      ("jeu", "Mode jeu", "input-gaming|applications-games", GREEN, "J", None, "",
       "jeux steam gamemode proton pilote nvidia vulkan manette"),
+     ("concentration", "Concentration", "preferences-desktop-notification-bell|notifications-disabled", "#5B5BD6",
+      "C", None, "", "ne pas deranger focus travail jeu stream notifications horaire mode"),
      ("telephone", "Téléphone", "kdeconnect|smartphone|phone", GREEN, "T", "kcm_kdeconnect", "",
       "iphone android kde connect sms notifications fichiers partage"),
      ("partage", "Partage de fichiers", "document-send|folder-network", BLUE, "P", None, "",
@@ -958,6 +960,79 @@ class Settings(QMainWindow):
             self.maj_title.setText("NounoursOS est à jour")
             self.maj_sub.setText(f"NounoursOS {rel.get('VERSION_ID', '')} « {rel.get('NOUNOURSOS_CODENAME', '')} »")
             self.maj_btn.setText("Rechercher des mises à jour")
+
+    # Modes Concentration ----------------------------------------------------------------
+    APPLIS_MODE = {"jeu": [("steam.desktop", "Ouvrir Steam")],
+                   "stream": [("com.obsproject.Studio.desktop", "Ouvrir OBS Studio")],
+                   "travail": []}
+
+    def page_concentration(self):
+        from . import concentration as C
+        from PyQt6.QtWidgets import QTimeEdit, QFileDialog
+        from PyQt6.QtCore import QTime
+        pg = page("Concentration", "Un clic pour couper les notifications et préparer l'ordinateur selon ce que "
+                                   "vous faites. Aussi dans le Centre de contrôle, en haut à droite.")
+        d = C.lire()
+        for cle, m in d["modes"].items():
+            pg.body.addWidget(label(f"{m.get('icone', '')}  {m['nom'].upper()}", "section"))
+            card = Card()
+            actif = Toggle(d["actif"] == cle)
+            actif.toggled.connect(lambda on, k=cle: (C.activer(k if on else None), self.open_page("concentration")))
+            card.add(SettingRow(f"Mode {m['nom']}", "Actif en ce moment" if d["actif"] == cle else "Inactif",
+                                actif))
+            ndp = Toggle(m.get("ne_pas_deranger", True))
+            ndp.toggled.connect(lambda on, k=cle: C.regler(k, ne_pas_deranger=on))
+            card.add(SettingRow("Ne pas déranger", "Aucune notification tant que le mode est actif.", ndp))
+            for appli, texte in self.APPLIS_MODE.get(cle, []):
+                if not (DEMO or os.path.exists(os.path.join("/usr/share/applications", appli))
+                        or os.path.exists(os.path.join("/var/lib/flatpak/exports/share/applications", appli))):
+                    continue
+                t = Toggle(appli in m.get("applis", []))
+                t.toggled.connect(lambda on, k=cle, a=appli: C.regler(
+                    k, applis=sorted(set(C.lire()["modes"][k].get("applis", [])) ^ {a})))
+                card.add(SettingRow(texte, "À l'activation du mode.", t))
+            fond = m.get("fond", "")
+            rf = SettingRow("Fond d'écran du mode", os.path.basename(fond) if fond else
+                            "Aucun changement (cliquez pour en choisir un)", None, chevron=True)
+
+            def choisir(k=cle):
+                f, _ = QFileDialog.getOpenFileName(self, "Fond d'écran du mode", WALLPAPERS,
+                                                   "Images (*.png *.jpg *.jpeg *.webp)")
+                C.regler(k, fond=f or "")
+                self.open_page("concentration")
+            rf.clicked.connect(choisir)
+            card.add(rf)
+            h = m.get("horaire", {})
+            box = QWidget()
+            row = QHBoxLayout(box)
+            row.setContentsMargins(0, 0, 0, 0)
+            auto = Toggle(h.get("actif", False))
+            debut, fin = QTimeEdit(QTime.fromString(h.get("debut", "09:00"), "HH:mm")), \
+                QTimeEdit(QTime.fromString(h.get("fin", "17:00"), "HH:mm"))
+            for te in (debut, fin):
+                te.setDisplayFormat("HH:mm")
+            semaine = Toggle(h.get("jours") == [1, 2, 3, 4, 5])
+
+            def sauver(_=None, k=cle, auto=auto, debut=debut, fin=fin, semaine=semaine):
+                C.regler(k, horaire={"actif": auto.isChecked(), "debut": debut.time().toString("HH:mm"),
+                                     "fin": fin.time().toString("HH:mm"),
+                                     "jours": [1, 2, 3, 4, 5] if semaine.isChecked() else [1, 2, 3, 4, 5, 6, 7]})
+            for wdg in (auto, semaine):
+                wdg.toggled.connect(sauver)
+            for te in (debut, fin):
+                te.timeChanged.connect(sauver)
+            row.addWidget(label("de"))
+            row.addWidget(debut)
+            row.addWidget(label("à"))
+            row.addWidget(fin)
+            row.addSpacing(10)
+            row.addWidget(label("en semaine seulement"))
+            row.addWidget(semaine)
+            row.addSpacing(10)
+            row.addWidget(auto)
+            card.add(SettingRow("Automatiquement", None, box))
+            pg.body.addWidget(card)
+        return finish(pg)
 
     # NounoursAccount -----------------------------------------------------------------------
     def page_compte(self):

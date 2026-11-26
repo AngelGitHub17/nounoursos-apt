@@ -1,0 +1,179 @@
+#!/usr/bin/python3
+"""Modes Concentration NounoursOS.
+
+  nounoursos-concentration activer travail|jeu|stream
+  nounoursos-concentration desactiver
+  nounoursos-concentration ndp on|off          (Ne pas déranger seul)
+  nounoursos-concentration etat
+  nounoursos-concentration --service      (lancé à l'ouverture de session)
+"""
+import json
+import os
+import subprocess
+import sys
+
+sys.path.insert(0, os.environ.get("NOUNOURSOS_PY", "/usr/lib/nounoursos/python"))
+from nounoursui import concentration as C  # noqa: E402
+
+ETAT_FOND = os.path.join(C.CONFIG_DIR, "concentration-fond-precedent")
+
+
+def _plasma(js):
+    try:
+        return subprocess.run(["gdbus", "call", "--session", "--dest", "org.kde.plasmashell", "--object-path",
+                               "/PlasmaShell", "--method", "org.kde.PlasmaShell.evaluateScript", js],
+                              capture_output=True, text=True, timeout=8).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+
+
+def _notifier(titre, texte):
+    try:
+        subprocess.Popen(["notify-send", "-a", "Concentration", "-i", "nounoursos", "-t", "2500", titre, texte])
+    except OSError:
+        pass
+
+
+class Service:
+    """Applique l'état du fichier de réglages : inhibition, fond, applis, horaires."""
+
+    def __init__(self):
+        import dbus
+        from dbus.mainloop.glib import DBusGMainLoop
+        DBusGMainLoop(set_as_default=True)
+        self.dbus = dbus
+        self.bus = dbus.SessionBus()
+        self.cookie = None
+        self.applique = None             # mode réellement appliqué
+        self.mtime = 0
+        self.horaire_precedent = None
+
+    # Notifications ------------------------------------------------------------------
+    def _notif(self):
+        o = self.bus.get_object("org.freedesktop.Notifications", "/org/freedesktop/Notifications")
+        return self.dbus.Interface(o, "org.freedesktop.Notifications")
+
+    def couper(self, nom):
+        if self.cookie is not None:
+            return
+        try:
+            self.cookie = int(self._notif().Inhibit("nounoursos-concentration", f"Mode {nom}",
+                                                    self.dbus.Dictionary({}, signature="sv")))
+        except self.dbus.DBusException as e:
+            print("Inhibit impossible :", e, file=sys.stderr)
+
+    def retablir(self):
+        if self.cookie is None:
+            return
+        try:
+            self._notif().UnInhibit(self.dbus.UInt32(self.cookie))
+        except self.dbus.DBusException as e:
+            print("UnInhibit impossible :", e, file=sys.stderr)
+        self.cookie = None
+
+    # Fond d'écran ---------------------------------------------------------------------
+    def fond(self, chemin):
+        if chemin:
+            if not os.path.exists(ETAT_FOND):
+                actuel = _plasma("var d = desktops()[0]; d.currentConfigGroup = ['Wallpaper', d.wallpaperPlugin, "
+                                 "'General']; print(d.wallpaperPlugin + '|' + d.readConfig('Image'))")
+                with open(ETAT_FOND, "w") as f:
+                    f.write(actuel.strip().strip("()',\""))
+            subprocess.Popen(["plasma-apply-wallpaperimage", chemin])
+        elif os.path.exists(ETAT_FOND):
+            with open(ETAT_FOND) as f:
+                plugin, _, image = f.read().partition("|")
+            os.unlink(ETAT_FOND)
+            if plugin == "org.kde.image" and image:
+                subprocess.Popen(["plasma-apply-wallpaperimage", image.replace("file://", "")])
+            elif plugin:
+                _plasma("desktops().forEach(function(d){ d.wallpaperPlugin = '%s'; })" % plugin)
+
+    # Application de l'état ------------------------------------------------------------
+    def appliquer(self, d):
+        voulu = d["actif"]
+        if voulu == self.applique:
+            # Même mode : seul « Ne pas déranger » a pu changer
+            if C.silence(d):
+                self.couper("Ne pas déranger")
+            else:
+                self.retablir()
+            return
+        avant = d["modes"].get(self.applique) if self.applique else None
+        mode = d["modes"].get(voulu) if voulu else None
+        # L'annonce part avant la coupure des notifications (sinon elle serait masquée)
+        if mode:
+            _notifier(f"{mode.get('icone', '')} Mode {mode['nom']}".strip(),
+                      "Notifications coupées." if mode.get("ne_pas_deranger") else "Activé.")
+        if C.silence(d):
+            self.couper(mode["nom"] if mode else "Ne pas déranger")
+        else:
+            self.retablir()
+        if not mode and avant:
+            _notifier(f"Fin du mode {avant['nom']}", "Les notifications sont de retour.")
+        if (avant and avant.get("fond")) or (mode and mode.get("fond")):
+            self.fond(mode.get("fond") if mode else "")
+        if mode:
+            for appli in mode.get("applis", []):
+                subprocess.Popen(["kioclient", "exec", appli] if appli.endswith(".desktop") else [appli],
+                                 start_new_session=True)
+        self.applique = voulu
+
+    def tic(self):
+        try:
+            mtime = os.stat(C.FICHIER).st_mtime
+        except OSError:
+            mtime = 0
+        d = C.lire()
+        # Horaires : on entre dans un mode prévu, et on en sort à la fin (sauf choix manuel)
+        prevu = C.mode_horaire(d)
+        if prevu != self.horaire_precedent:
+            if prevu and d["actif"] != prevu:
+                d = C.activer(prevu, par_horaire=True)
+            elif not prevu and d["actif"] and d["par_horaire"]:
+                d = C.activer(None)
+            self.horaire_precedent = prevu
+        if mtime != self.mtime or d["actif"] != self.applique or C.silence(d) != (self.cookie is not None):
+            self.mtime = mtime
+            self.appliquer(d)
+        return True
+
+    def lancer(self):
+        from gi.repository import GLib
+        self.tic()
+        GLib.timeout_add_seconds(2, self.tic)
+        try:
+            GLib.MainLoop().run()
+        finally:
+            self.retablir()
+
+
+def main(argv):
+    cmd = argv[1] if len(argv) > 1 else "etat"
+    if cmd == "--service":
+        Service().lancer()
+        return 0
+    if cmd == "activer" and len(argv) > 2:
+        try:
+            C.activer(argv[2])
+        except KeyError:
+            print("Modes :", ", ".join(C.lire()["modes"]))
+            return 2
+        return 0
+    if cmd == "desactiver":
+        C.activer(None)
+        return 0
+    if cmd == "ndp" and len(argv) > 2:
+        C.ne_pas_deranger(argv[2] in ("on", "1", "oui"))
+        return 0
+    if cmd == "etat":
+        d = C.lire()
+        print(json.dumps({"actif": d["actif"], "modes": {k: m["nom"] for k, m in d["modes"].items()}},
+                         ensure_ascii=False))
+        return 0
+    print(__doc__)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

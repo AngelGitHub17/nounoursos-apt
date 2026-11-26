@@ -1,0 +1,15 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [ { "Name": "NounoursCorp" } ],
+        "Category": "System Information",
+        "Description": "Wi-Fi, Bluetooth, son, luminosité, Ne pas déranger, modes Concentration et mode sombre en un clic",
+        "Icon": "configure",
+        "Id": "org.nounoursos.controle",
+        "License": "GPL-2.0-or-later",
+        "Name": "Centre de contrôle",
+        "Version": "1.4",
+        "Website": "https://nounourscorp.fr"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

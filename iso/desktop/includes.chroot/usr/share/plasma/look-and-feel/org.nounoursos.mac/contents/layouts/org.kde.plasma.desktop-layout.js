@@ -27,6 +27,7 @@ menu.writeConfig("icon", "nounoursos");
 
 top.addWidget("org.kde.plasma.appmenu");
 top.addWidget("org.kde.plasma.panelspacer");
+top.addWidget("org.nounoursos.controle");   // Centre de contrôle NounoursOS
 top.addWidget("org.kde.plasma.systemtray");
 
 var clock = top.addWidget("org.kde.plasma.digitalclock");

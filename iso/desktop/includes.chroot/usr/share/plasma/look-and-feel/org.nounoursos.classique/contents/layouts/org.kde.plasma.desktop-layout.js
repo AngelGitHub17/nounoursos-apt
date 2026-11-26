@@ -38,6 +38,7 @@ tasks.writeConfig("launchers", [
 ]);
 
 panel.addWidget("org.kde.plasma.marginsseparator");
+panel.addWidget("org.nounoursos.controle");   // Centre de contrôle NounoursOS
 panel.addWidget("org.kde.plasma.systemtray");
 panel.addWidget("org.kde.plasma.digitalclock");
 panel.addWidget("org.kde.plasma.showdesktop");

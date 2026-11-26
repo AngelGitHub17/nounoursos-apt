@@ -1,0 +1,89 @@
+#!/usr/bin/python3
+"""Nouveautés à appliquer une fois par compte, à l'ouverture de session (machines déjà installées).
+Chaque étape n'est faite qu'une fois : la liste est dans ~/.config/nounoursos/migrations."""
+import os
+import subprocess
+import time
+
+FAIT = os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config")), "nounoursos", "migrations")
+
+
+def plasma(js):
+    r = subprocess.run(["gdbus", "call", "--session", "--dest", "org.kde.plasmashell", "--object-path",
+                        "/PlasmaShell", "--method", "org.kde.PlasmaShell.evaluateScript", js],
+                       capture_output=True, text=True, timeout=15)
+    return r.returncode == 0
+
+
+# 1.4 : Centre de contrôle dans la barre, juste avant la zone de notification.
+# En deux temps : la barre réenregistre son ordre juste après un ajout, donc on réordonne ensuite.
+AJOUT = """
+panels().forEach(function (p) {
+    var w = p.widgets(), tray = false, deja = false;
+    for (var i = 0; i < w.length; i++) {
+        if (w[i].type == "org.kde.plasma.systemtray") tray = true;
+        if (w[i].type == "org.nounoursos.controle") deja = true;
+    }
+    if (tray && !deja) p.addWidget("org.nounoursos.controle");
+});
+"""
+ORDRE = """
+panels().forEach(function (p) {
+    var w = p.widgets(), tray = null, c = null;
+    for (var i = 0; i < w.length; i++) {
+        if (w[i].type == "org.kde.plasma.systemtray") tray = w[i];
+        if (w[i].type == "org.nounoursos.controle") c = w[i];
+    }
+    if (!tray || !c) return;
+    p.currentConfigGroup = ["General"];
+    var avant = (p.readConfig("AppletOrder") || "").split(";").filter(function (x) { return x; });
+    var ordre = [];
+    for (var j = 0; j < avant.length; j++) {
+        if (avant[j] == String(c.id)) continue;
+        if (avant[j] == String(tray.id)) ordre.push(String(c.id));
+        ordre.push(avant[j]);
+    }
+    if (ordre.length == avant.length) p.writeConfig("AppletOrder", ordre.join(";"));
+});
+"""
+
+
+def centre_de_controle():
+    if not plasma(AJOUT):
+        return False
+    time.sleep(4)
+    return plasma(ORDRE)
+
+
+ETAPES = [("1.4-centre-de-controle", centre_de_controle)]
+
+
+def main():
+    try:
+        with open(FAIT) as f:
+            faites = set(f.read().split())
+    except OSError:
+        faites = set()
+    a_faire = [(n, f) for n, f in ETAPES if n not in faites]
+    if not a_faire:
+        return
+    # Laisser Plasma finir de démarrer
+    for _ in range(30):
+        if subprocess.run(["gdbus", "introspect", "--session", "--dest", "org.kde.plasmashell", "--object-path",
+                           "/PlasmaShell"], capture_output=True).returncode == 0:
+            break
+        time.sleep(2)
+    time.sleep(5)
+    for nom, etape in a_faire:
+        try:
+            if etape():
+                faites.add(nom)
+        except Exception as e:  # une étape ratée sera retentée à la prochaine session
+            print(nom, ":", e)
+    os.makedirs(os.path.dirname(FAIT), exist_ok=True)
+    with open(FAIT, "w") as f:
+        f.write("\n".join(sorted(faites)) + "\n")
+
+
+if __name__ == "__main__":
+    main()
