@@ -1,0 +1,37 @@
+/* Tableau de bord NounoursOS pour Cockpit */
+:root { --miel: #D98A3F; --miel-clair: #F5B862; --prune: #1B1329; --fond: #F7F2EC; --carte: #FFFFFF;
+        --texte: #1E1726; --doux: #6B6175; --bord: #E6DED5; --vert: #2F9E57; --rouge: #D9534F; }
+@media (prefers-color-scheme: dark) {
+  :root { --fond: #151020; --carte: #211A2E; --texte: #F3ECE4; --doux: #A99FB5; --bord: #352C45; }
+}
+html.pf-v5-theme-dark, html.pf-v6-theme-dark { --fond: #151020; --carte: #211A2E; --texte: #F3ECE4; --doux: #A99FB5; --bord: #352C45; }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 24px; background: var(--fond); color: var(--texte);
+       font: 14px/1.5 Inter, "Red Hat Text", system-ui, sans-serif; }
+.entete { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+.entete img { width: 56px; height: 56px; }
+h1 { margin: 0; font-size: 24px; }
+h2 { margin: 0 0 12px; font-size: 16px; }
+.entete p { margin: 2px 0 0; color: var(--doux); }
+.bandeau { background: #FFF4E5; color: #7A4A12; border: 1px solid var(--miel-clair); border-radius: 10px;
+           padding: 10px 14px; margin-bottom: 16px; }
+.grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 16px; }
+.carte { background: var(--carte); border: 1px solid var(--bord); border-radius: 14px; padding: 18px; margin-bottom: 16px; }
+.role { display: flex; flex-direction: column; gap: 10px; }
+.role .titre { display: flex; align-items: center; gap: 12px; }
+.role .pastille { width: 42px; height: 42px; border-radius: 11px; display: grid; place-items: center;
+                  color: #fff; font-weight: 800; font-size: 18px; }
+.role h3 { margin: 0; font-size: 16px; }
+.role .desc { color: var(--doux); margin: 0; min-height: 42px; }
+.etat { font-size: 13px; color: var(--doux); }
+.etat b.ok { color: var(--vert); } .etat b.non { color: var(--rouge); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto; }
+button { font: inherit; border-radius: 8px; padding: 7px 14px; border: 1px solid var(--bord);
+         background: var(--carte); color: var(--texte); cursor: pointer; }
+button.principal { background: var(--miel); border-color: var(--miel); color: #fff; font-weight: 600; }
+button:disabled { opacity: .5; cursor: default; }
+a { color: var(--miel); }
+label { display: block; margin: 8px 0; }
+label.case { display: flex; gap: 8px; align-items: center; }
+select { font: inherit; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--bord); background: var(--carte); color: var(--texte); }
+pre { margin: 0; max-height: 260px; overflow: auto; white-space: pre-wrap; font-size: 12px; color: var(--doux); }

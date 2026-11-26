@@ -126,7 +126,8 @@ if [ -f "$ROOT/../depot.conf" ]; then
   . "$ROOT/../depot.conf"
   WANT="nounoursos-archive-keyring nounoursos-release"
   OPTIONAL=""
-  if [ "$BASE_EDITION" = "desktop" ]; then WANT="$WANT nounoursos-desktop"; OPTIONAL="winboat nounours-launcher nounours-browser localsend"; fi
+  if [ "$BASE_EDITION" = "desktop" ]; then WANT="$WANT nounoursos-minecraft nounoursos-desktop"; OPTIONAL="winboat nounours-launcher nounours-browser localsend"; fi
+  if [ "$BASE_EDITION" = "server" ]; then OPTIONAL="nounoursos-minecraft nounoursos-server"; fi
   if [ "$EDITION" = "nt" ]; then OPTIONAL="nounoursos-nt $OPTIONAL"; fi
   IDX=$(curl -fsSL --max-time 30 "$URL/dists/$SUITE/$COMPONENT/binary-amd64/Packages" || true)
   mkdir -p config/packages.chroot

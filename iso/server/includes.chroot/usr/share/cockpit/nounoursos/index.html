@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>NounoursOS</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="nounoursos.css">
+  <script src="../base1/cockpit.js"></script>
+  <script src="nounoursos.js" defer></script>
+</head>
+<body>
+  <header class="entete">
+    <img src="logo.png" alt="">
+    <div>
+      <h1>NounoursOS Server</h1>
+      <p id="sous-titre">Rôles en un clic. Doux dehors, solide dedans.</p>
+    </div>
+  </header>
+  <div id="admin" class="bandeau" hidden>
+    Activez l'<b>accès administrateur</b> (en haut de Cockpit) pour installer ou piloter les rôles.
+  </div>
+  <main id="roles" class="grille"></main>
+  <section id="mc-panneau" class="carte" hidden>
+    <h2>Nouveau serveur Minecraft</h2>
+    <label>Version <select id="mc-version"><option>Chargement…</option></select></label>
+    <label>Mémoire <select id="mc-memoire">
+      <option value="2">2 Go</option><option value="4" selected>4 Go</option><option value="6">6 Go</option>
+      <option value="8">8 Go</option><option value="12">12 Go</option></select></label>
+    <label class="case"><input type="checkbox" id="mc-cluf"> J'ai lu et j'accepte le
+      <a href="https://aka.ms/MinecraftEULA" target="_blank" rel="noopener">contrat de licence de Minecraft</a></label>
+    <div class="actions">
+      <button id="mc-go" class="principal" disabled>Créer le serveur</button>
+      <button id="mc-annuler">Annuler</button>
+    </div>
+  </section>
+  <section class="carte">
+    <h2>Journal</h2>
+    <pre id="journal">Prêt.</pre>
+  </section>
+</body>
+</html>

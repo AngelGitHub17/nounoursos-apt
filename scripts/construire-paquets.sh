@@ -201,8 +201,6 @@ take "$P" "$D" "usr/share/icons/NounoursOS"
 take "$P" "$D" "usr/share/nounoursos/streamer"
 take "$P" "$D" "etc/xdg/kcminputrc"
 take "$P" "$C" "usr/share/icons/hicolor/*/apps/nounoursos.*"
-take "$P" "$C" "usr/bin/nounoursos-minecraft"
-take "$P" "$C" "usr/lib/nounoursos/python/nounours_minecraft.py"
 take "$P" "$C" "usr/share/nounoursos/logo*"
 take "$P" "$C" "usr/share/nounoursos/grub-background.png"
 chmod 755 "$P"/usr/bin/* "$P"/usr/libexec/nounoursos/*
@@ -224,7 +222,7 @@ Maintainer: ${MAINTAINER}
 Installed-Size: @SIZE@
 Section: x11
 Priority: optional
-Depends: nounoursos-release, python3, python3-pyqt6, packagekit, packagekit-tools, kdialog, plasma-workspace, rsync, python3-dbus, python3-gi${DESK_DEPS_EXTRA}
+Depends: nounoursos-release, nounoursos-minecraft, python3, python3-pyqt6, packagekit, packagekit-tools, kdialog, plasma-workspace, rsync, python3-dbus, python3-gi${DESK_DEPS_EXTRA}
 Recommends: unattended-upgrades, pciutils, xdg-user-dirs, kde-cli-tools,
  winboat, docker.io, docker-compose, freerdp3-x11, nounours-launcher, nounours-browser,
  flatpak, plasma-discover-backend-flatpak, swayidle, fprintd, libpam-fprintd, fonts-inter,
@@ -274,6 +272,68 @@ cat > "$P/DEBIAN/prerm" <<'EOF'
 #!/bin/sh
 set -e
 find /usr/lib/nounoursos/python -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true
+exit 0
+EOF
+build "$P"
+
+# -----------------------------------------------------------------------------
+log "nounoursos-minecraft $DESKTOP_VERSION"
+P="$WORK/nounoursos-minecraft"
+C="$ISO/common/includes.chroot"
+mkdir -p "$P/DEBIAN"
+take "$P" "$C" "usr/bin/nounoursos-minecraft"
+take "$P" "$C" "usr/lib/nounoursos/python/nounours_minecraft.py"
+chmod 755 "$P/usr/bin/nounoursos-minecraft"
+cat > "$P/DEBIAN/control" <<EOF
+Package: nounoursos-minecraft
+Version: ${DESKTOP_VERSION}
+Architecture: all
+Maintainer: ${MAINTAINER}
+Installed-Size: @SIZE@
+Section: games
+Priority: optional
+Depends: python3, systemd
+Suggests: openjdk-21-jre-headless | openjdk-25-jre-headless
+Homepage: https://nounourscorp.fr/
+Description: Serveur Minecraft (Paper) en un clic pour NounoursOS
+ Télécharge Paper depuis PaperMC (empreinte vérifiée), le fait tourner comme service
+ systemd, avec console RCON et sauvegardes du monde. Commande : nounoursos-minecraft.
+EOF
+build "$P"
+
+# -----------------------------------------------------------------------------
+log "nounoursos-server $DESKTOP_VERSION"
+P="$WORK/nounoursos-server"
+S="$ISO/server/includes.chroot"
+mkdir -p "$P/DEBIAN"
+take "$P" "$S" "usr/share/cockpit/nounoursos"
+take "$P" "$S" "usr/share/cockpit/branding/nounoursos"
+take "$P" "$S" "usr/libexec/nounoursos/nounoursos-roles"
+chmod 755 "$P/usr/libexec/nounoursos/nounoursos-roles"
+cat > "$P/DEBIAN/control" <<EOF
+Package: nounoursos-server
+Version: ${DESKTOP_VERSION}
+Architecture: all
+Maintainer: ${MAINTAINER}
+Installed-Size: @SIZE@
+Section: admin
+Priority: optional
+Depends: nounoursos-release, nounoursos-minecraft, cockpit-ws, cockpit-system, cockpit-bridge, curl, gpg
+Recommends: cockpit-packagekit, ufw
+Homepage: https://nounourscorp.fr/
+Description: Tableau de bord NounoursOS Server (Cockpit)
+ Cockpit aux couleurs NounoursOS (https://<serveur>:9090) avec une page NounoursOS :
+ site web (Apache, PHP, MariaDB), Jellyfin et Minecraft (Paper) en un clic.
+EOF
+cat > "$P/DEBIAN/postinst" <<'EOF'
+#!/bin/sh
+set -e
+if [ "$1" = "configure" ]; then
+  # Tableau de bord accessible depuis le réseau local (port 9090, connexion chiffrée)
+  if command -v ufw >/dev/null; then ufw allow 9090/tcp >/dev/null 2>&1 || true; fi
+  systemctl enable cockpit.socket >/dev/null 2>&1 || true
+  if [ -d /run/systemd/system ]; then systemctl start cockpit.socket >/dev/null 2>&1 || true; fi
+fi
 exit 0
 EOF
 build "$P"

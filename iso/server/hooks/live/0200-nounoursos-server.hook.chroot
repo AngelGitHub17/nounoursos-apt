@@ -14,6 +14,15 @@ if ! grep -q 'dport 22 ' /etc/ufw/user6.rules; then
   sed -i '/^### RULES ###/a ### tuple ### allow tcp 22 ::/0 any ::/0 in\n-A ufw6-user-input -p tcp --dport 22 -j ACCEPT' /etc/ufw/user6.rules
 fi
 
+echo "[NounoursOS Server] Tableau de bord Cockpit (port 9090)"
+for f in /etc/ufw/user.rules:ufw /etc/ufw/user6.rules:ufw6; do
+  r=${f%%:*}; c=${f##*:}; a=0.0.0.0/0; [ "$c" = ufw6 ] && a=::/0
+  if ! grep -q 'dport 9090 ' "$r"; then
+    sed -i "/^### RULES ###/a ### tuple ### allow tcp 9090 $a any $a in\n-A $c-user-input -p tcp --dport 9090 -j ACCEPT" "$r"
+  fi
+done
+systemctl enable cockpit.socket || true
+
 echo "[NounoursOS Server] Mises à jour de sécurité automatiques"
 cat > /etc/apt/apt.conf.d/20auto-upgrades <<'EOF'
 APT::Periodic::Update-Package-Lists "1";

@@ -8,11 +8,17 @@
   nounoursos-minecraft sauvegarder
   nounoursos-minecraft au-demarrage on|off
   nounoursos-minecraft mettre-a-jour
+
+NounoursOS Server : avec --systeme (en root), le serveur tourne sous le compte « minecraft »
+dans /srv/minecraft, comme service du système.
 """
 import os
 import sys
 
 sys.path.insert(0, "/usr/lib/nounoursos/python")
+if "--systeme" in sys.argv:
+    sys.argv.remove("--systeme")
+    os.environ["NOUNOURSOS_MINECRAFT_SYSTEME"] = "1"
 import nounours_minecraft as M  # noqa: E402
 
 
@@ -51,7 +57,7 @@ def main(a):
             if "--memoire" in a:
                 mem = int(a[a.index("--memoire") + 1])
             info = M.infos_version(version)
-            if not M.java_pour(info["java"]):
+            if not M.java_pour(info["java"]) and not (M.SYSTEME and os.geteuid() == 0):
                 n = M.paquet_java(info["java"])
                 sortir(f"Paper {version} demande Java {info['java']}. Installez-le avec :\n"
                        f"  sudo apt install openjdk-{n}-jre-headless")
@@ -87,7 +93,7 @@ def main(a):
         elif cmd == "au-demarrage":
             on = len(a) > 1 and a[1] == "on"
             M.au_demarrage(on)
-            if on and not os.path.exists(f"/var/lib/systemd/linger/{os.environ.get('USER', '')}"):
+            if on and not M.SYSTEME and not os.path.exists(f"/var/lib/systemd/linger/{os.environ.get('USER', '')}"):
                 print("Pour qu'il démarre même sans session ouverte : sudo loginctl enable-linger $USER")
         else:
             sortir(f"Commande inconnue : {cmd}\n\n{__doc__.strip()}", 2)

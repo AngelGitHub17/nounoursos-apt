@@ -3,5 +3,6 @@
     ( o.o )     Un serveur NounoursCorp, basé sur Debian.
     (> ♥ <)     https://nounourscorp.fr
 
-  Pare-feu : ufw (SSH autorisé)   Mises à jour de sécurité : automatiques
+  Pare-feu : ufw (SSH, tableau de bord)   Mises à jour de sécurité : automatiques
+  Tableau de bord : https://<adresse du serveur>:9090   Minecraft : nounoursos-minecraft --systeme
 

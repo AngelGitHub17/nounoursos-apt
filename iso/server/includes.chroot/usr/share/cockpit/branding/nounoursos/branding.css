@@ -1,0 +1,28 @@
+/* NounoursOS Server — généré par iso/assets/cockpit.py */
+#badge {
+    inline-size: 96px;
+    block-size: 96px;
+    background-image: url("logo.png");
+    background-size: contain;
+    background-repeat: no-repeat;
+}
+
+#brand::before {
+    content: "NounoursOS Server";
+    font-weight: 700;
+}
+
+body.login-pf {
+    background: #1B1329 url("fond.jpg") center / cover no-repeat;
+    color: #FCE8CC;
+}
+
+body.login-pf #brand {
+    color: #FFFFFF;
+}
+
+body.login-pf #login-button {
+    background-color: #F5B862;
+    border-color: #F5B862;
+    color: #1B1329;
+}

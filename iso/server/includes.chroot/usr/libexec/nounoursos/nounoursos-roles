@@ -1,0 +1,111 @@
+#!/bin/bash
+# NounoursOS Server — rôles en un clic (appelé en root par le tableau de bord Cockpit).
+#   nounoursos-roles etat                       → JSON
+#   nounoursos-roles installer web|jellyfin
+#   nounoursos-roles installer minecraft <version> <mémoire Go> cluf-accepte
+#   nounoursos-roles demarrer|arreter|retirer <rôle>
+# « retirer » arrête et désactive le rôle mais ne supprime jamais les données.
+set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+JELLYFIN_EMPREINTE=4918AABC486CA052358D778D49023CD01DE21A7B
+
+ufw_ouvrir() { command -v ufw >/dev/null && for p in "$@"; do ufw allow "$p" >/dev/null || true; done; }
+ufw_fermer() { command -v ufw >/dev/null && for p in "$@"; do ufw delete allow "$p" >/dev/null 2>&1 || true; done; }
+installe() { dpkg-query -W -f='${Status}' "$1" 2>/dev/null | grep -q "install ok installed"; }
+actif() { systemctl is-active --quiet "$1" && echo true || echo false; }
+mc() { NOUNOURSOS_MINECRAFT_SYSTEME=1 /usr/bin/nounoursos-minecraft "$@"; }
+
+etat() {
+  local ip; ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+  local web=false jf=false mcs=false
+  installe apache2 && installe mariadb-server && web=true
+  installe jellyfin && jf=true
+  [ -f /etc/systemd/system/nounoursos-minecraft.service ] && mcs=true
+  local mcv=""
+  [ -f /srv/minecraft/Serveur/nounoursos.json ] && mcv=$(python3 -c 'import json;print(json.load(open("/srv/minecraft/Serveur/nounoursos.json")).get("version",""))' 2>/dev/null || true)
+  local joueurs=""
+  if $mcs && systemctl is-active --quiet nounoursos-minecraft; then
+    joueurs=$(mc console list 2>/dev/null | sed -n 's/.*There are \([0-9]*\) of a max of \([0-9]*\).*/\1\/\2/p' || true)
+  fi
+  cat <<JSON
+{"ip": "$ip",
+ "web": {"installe": $web, "actif": $( $web && actif apache2 || echo false ), "port": 80},
+ "jellyfin": {"installe": $jf, "actif": $( $jf && actif jellyfin || echo false ), "port": 8096},
+ "minecraft": {"installe": $mcs, "actif": $( $mcs && actif nounoursos-minecraft || echo false ), "port": 25565,
+               "version": "$mcv", "joueurs": "$joueurs"}}
+JSON
+}
+
+installer_web() {
+  apt-get install -y apache2 mariadb-server php libapache2-mod-php php-mysql php-mbstring php-xml php-curl php-zip php-gd
+  systemctl enable --now apache2 mariadb
+  if [ ! -f /var/www/html/index.php ] && grep -q "Apache2 Debian Default Page" /var/www/html/index.html 2>/dev/null; then
+    rm -f /var/www/html/index.html
+    cat > /var/www/html/index.php <<'PHP'
+<!doctype html><meta charset="utf-8"><title>NounoursOS Server</title>
+<style>body{font-family:Inter,system-ui,sans-serif;background:#1B1329;color:#FCE8CC;display:grid;place-items:center;height:100vh;margin:0}
+h1{color:#F5B862;margin:0 0 .3em}code{background:#2B1C40;padding:.15em .4em;border-radius:6px}</style>
+<div><h1>Votre site est en ligne</h1><p>Servi par NounoursOS Server · PHP <?= PHP_VERSION ?></p>
+<p>Déposez vos fichiers dans <code>/var/www/html</code>.</p></div>
+PHP
+  fi
+  ufw_ouvrir 80/tcp 443/tcp
+}
+
+installer_jellyfin() {
+  install -d -m 755 /etc/apt/keyrings
+  local tmp; tmp=$(mktemp)
+  curl -fsSL https://repo.jellyfin.org/jellyfin_team.gpg.key -o "$tmp"
+  if ! gpg --show-keys --with-colons "$tmp" 2>/dev/null | grep -q "^fpr:::::::::$JELLYFIN_EMPREINTE:"; then
+    rm -f "$tmp"; echo "Clé du dépôt Jellyfin inattendue : installation annulée." >&2; exit 4
+  fi
+  gpg --dearmor --yes -o /etc/apt/keyrings/jellyfin.gpg "$tmp"; rm -f "$tmp"
+  . /etc/os-release
+  cat > /etc/apt/sources.list.d/jellyfin.sources <<SRC
+Types: deb
+URIs: https://repo.jellyfin.org/debian
+Suites: ${DEBIAN_CODENAME:-${VERSION_CODENAME:-trixie}}
+Components: main
+Architectures: $(dpkg --print-architecture)
+Signed-By: /etc/apt/keyrings/jellyfin.gpg
+SRC
+  apt-get update
+  apt-get install -y jellyfin
+  systemctl enable --now jellyfin
+  ufw_ouvrir 8096/tcp
+}
+
+installer_minecraft() {
+  local version="${1:-}" memoire="${2:-4}" cluf="${3:-}"
+  [ "$cluf" = "cluf-accepte" ] || { echo "Le CLUF de Minecraft doit être accepté." >&2; exit 2; }
+  case "$memoire" in ''|*[!0-9]*) memoire=4 ;; esac
+  case "$version" in ''|*[!0-9.]*) version="" ;; esac
+  mc installer ${version:+"$version"} --memoire "$memoire" --accepter-cluf
+  systemctl enable --now nounoursos-minecraft
+  ufw_ouvrir 25565/tcp
+}
+
+case "${1:-}" in
+  etat) etat ;;
+  installer)
+    case "${2:-}" in
+      web) installer_web ;;
+      jellyfin) installer_jellyfin ;;
+      minecraft) installer_minecraft "${3:-}" "${4:-}" "${5:-}" ;;
+      *) echo "Rôle inconnu" >&2; exit 2 ;;
+    esac ;;
+  demarrer|arreter|retirer)
+    case "${2:-}" in
+      web) svc="apache2 mariadb"; ports="80/tcp 443/tcp" ;;
+      jellyfin) svc=jellyfin; ports=8096/tcp ;;
+      minecraft) svc=nounoursos-minecraft; ports=25565/tcp ;;
+      *) echo "Rôle inconnu" >&2; exit 2 ;;
+    esac
+    case "$1" in
+      demarrer) systemctl start $svc ;;
+      arreter) systemctl stop $svc ;;
+      retirer) systemctl disable --now $svc; ufw_fermer $ports ;;
+    esac ;;
+  minecraft-sauvegarder) mc sauvegarder ;;
+  *) echo "usage: nounoursos-roles etat|installer|demarrer|arreter|retirer …" >&2; exit 2 ;;
+esac

@@ -15,3 +15,11 @@ ncdu
 bind9-dnsutils
 man-db
 vim
+
+# Tableau de bord web (Cockpit, https://<serveur>:9090)
+cockpit-ws
+cockpit-system
+cockpit-bridge
+cockpit-packagekit
+curl
+gpg

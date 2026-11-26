@@ -1,0 +1,13 @@
+{
+    "version": 0,
+    "name": "nounoursos",
+    "menu": {
+        "index": {
+            "label": "NounoursOS",
+            "order": 1,
+            "keywords": [
+                { "matches": ["rôles", "roles", "minecraft", "jellyfin", "web", "php", "mysql", "nounours"] }
+            ]
+        }
+    }
+}

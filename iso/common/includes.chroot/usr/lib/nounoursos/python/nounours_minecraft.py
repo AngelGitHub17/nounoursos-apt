@@ -22,7 +22,10 @@ import urllib.request
 
 API = os.environ.get("NOUNOURSOS_PAPER_API", "https://fill.papermc.io/v3/projects/paper")
 UA = "NounoursOS (https://nounourscorp.fr/)"
-BASE = os.environ.get("NOUNOURSOS_MINECRAFT", os.path.expanduser("~/Minecraft"))
+# Mode système (NounoursOS Server) : compte « minecraft », dossier /srv/minecraft, service systemd du système
+SYSTEME = os.environ.get("NOUNOURSOS_MINECRAFT_SYSTEME") == "1"
+COMPTE = "minecraft"
+BASE = os.environ.get("NOUNOURSOS_MINECRAFT", "/srv/minecraft" if SYSTEME else os.path.expanduser("~/Minecraft"))
 DOSSIER = os.path.join(BASE, "Serveur")
 SAUVEGARDES = os.path.join(BASE, "Sauvegardes")
 CONF = os.path.join(DOSSIER, "nounoursos.json")
@@ -185,7 +188,14 @@ def installer(info, accepte_cluf, memoire=None, nom="Serveur NounoursOS", progre
     if not accepte_cluf:
         raise ErreurMinecraft("Il faut accepter le contrat de licence (CLUF) de Minecraft.")
     if not java_pour(info["java"]):
-        raise ErreurMinecraft(f"Java {paquet_java(info['java'])} n'est pas installé.")
+        n = paquet_java(info["java"])
+        if SYSTEME and os.geteuid() == 0 and n:
+            subprocess.run(["apt-get", "install", "-y", f"openjdk-{n}-jre-headless"], check=False,
+                           env=dict(os.environ, DEBIAN_FRONTEND="noninteractive"))
+        if not java_pour(info["java"]):
+            raise ErreurMinecraft(f"Java {n} n'est pas installé.")
+    if SYSTEME:
+        preparer_compte()
     ancien = lire()
     jar = telecharger(info, progression)
     if ancien.get("jar") and ancien["jar"] != jar:
@@ -209,21 +219,46 @@ def installer(info, accepte_cluf, memoire=None, nom="Serveur NounoursOS", progre
     return conf
 
 
+def _chemin_service():
+    if SYSTEME:
+        return f"/etc/systemd/system/{SERVICE}"
+    return os.path.expanduser(f"~/.config/systemd/user/{SERVICE}")
+
+
+def preparer_compte():
+    """Mode système : compte « minecraft » sans connexion, propriétaire de /srv/minecraft."""
+    import pwd
+    try:
+        pwd.getpwnam(COMPTE)
+    except KeyError:
+        subprocess.run(["useradd", "--system", "--home-dir", BASE, "--shell", "/usr/sbin/nologin", COMPTE],
+                       check=True)
+    os.makedirs(DOSSIER, exist_ok=True)
+    os.makedirs(SAUVEGARDES, exist_ok=True)
+
+
+def _proprietaire():
+    if SYSTEME:
+        subprocess.run(["chown", "-R", f"{COMPTE}:{COMPTE}", BASE], capture_output=True)
+
+
 def ecrire_service():
     c = lire()
     java = java_pour(c.get("java", 21)) or "/usr/bin/java"
     mem = int(c.get("memoire", 4))
     args = " ".join([f"-Xms{mem}G", f"-Xmx{mem}G"] + c.get("drapeaux", []) +
                     ["-jar", c["jar"], "--nogui"])
-    d = os.path.expanduser("~/.config/systemd/user")
-    os.makedirs(d, exist_ok=True)
-    with open(os.path.join(d, SERVICE), "w") as f:
+    os.makedirs(os.path.dirname(_chemin_service()), exist_ok=True)
+    compte = f"User={COMPTE}\nGroup={COMPTE}\n" if SYSTEME else ""
+    cible = "multi-user.target" if SYSTEME else "default.target"
+    with open(_chemin_service(), "w") as f:
         f.write(f"""[Unit]
 Description=Serveur Minecraft NounoursOS (Paper {c.get('version', '')})
 After=network-online.target
+Wants=network-online.target
 
 [Service]
-WorkingDirectory={DOSSIER}
+{compte}WorkingDirectory={DOSSIER}
 ExecStart={java} {args}
 Restart=on-failure
 RestartSec=10
@@ -231,14 +266,16 @@ TimeoutStopSec=120
 Nice=2
 
 [Install]
-WantedBy=default.target
+WantedBy={cible}
 """)
-    subprocess.run(["systemctl", "--user", "daemon-reload"], capture_output=True, timeout=20)
+    _proprietaire()
+    _sc("daemon-reload")
 
 
 # --- Service --------------------------------------------------------------------------
 def _sc(*args):
-    return subprocess.run(["systemctl", "--user", *args], capture_output=True, text=True, timeout=60)
+    base = ["systemctl"] if SYSTEME else ["systemctl", "--user"]
+    return subprocess.run(base + list(args), capture_output=True, text=True, timeout=120)
 
 
 def etat():
@@ -358,6 +395,7 @@ def sauvegarder():
                 t.add(os.path.join(DOSSIER, d), arcname=d,
                       filter=lambda i: None if i.name.endswith("session.lock") else i)
         os.replace(chemin + ".part", chemin)
+        _proprietaire()
     finally:
         if en_marche:
             try:
@@ -378,7 +416,8 @@ def supprimer_serveur():
     arreter()
     au_demarrage(False)
     try:
-        os.unlink(os.path.expanduser(f"~/.config/systemd/user/{SERVICE}"))
+        os.unlink(_chemin_service())
     except OSError:
         pass
+    _sc("daemon-reload")
     shutil.rmtree(DOSSIER, ignore_errors=True)
