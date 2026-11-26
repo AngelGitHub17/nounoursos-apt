@@ -55,7 +55,19 @@ def centre_de_controle():
     return plasma(ORDRE)
 
 
-ETAPES = [("1.4-centre-de-controle", centre_de_controle)]
+def curseur():
+    """Curseur NounoursOS, sauf si l'utilisateur en a choisi un autre que celui de KDE."""
+    try:
+        actuel = subprocess.run(["kreadconfig6", "--file", "kcminputrc", "--group", "Mouse", "--key",
+                                 "cursorTheme"], capture_output=True, text=True, timeout=5).stdout.strip()
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    if actuel in ("", "breeze_cursors", "Breeze_Light", "breeze"):
+        return subprocess.run(["plasma-apply-cursortheme", "NounoursOS"], capture_output=True).returncode == 0
+    return True
+
+
+ETAPES = [("1.4-centre-de-controle", centre_de_controle), ("1.4-curseur", curseur)]
 
 
 def main():

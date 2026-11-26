@@ -1,7 +1,7 @@
 [Sound Theme]
 Name=NounoursOS
 Name[fr]=NounoursOS
-Comment=Sons doux de NounoursOS
+Comment=Notes de bois douces, en fa majeur
 Inherits=ocean,freedesktop
 Directories=stereo
 

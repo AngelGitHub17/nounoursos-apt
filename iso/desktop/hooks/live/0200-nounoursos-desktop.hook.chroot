@@ -47,6 +47,11 @@ if command -v grub-mkfont >/dev/null && [ -f "$F/Inter-Regular.otf" ]; then
 fi
 ls "$T"/*.pf2 2>/dev/null || echo "(polices GRUB non générées : police par défaut utilisée)"
 
+echo "[NounoursOS] Curseur NounoursOS par défaut (aussi hors KDE)"
+update-alternatives --install /usr/share/icons/default/index.theme x-cursor-theme \
+  /usr/share/icons/NounoursOS/cursor.theme 95 || true
+update-alternatives --set x-cursor-theme /usr/share/icons/NounoursOS/cursor.theme || true
+
 echo "[NounoursOS] Capsule temporelle : minuteur pour chaque compte"
 systemctl --global enable nounoursos-capsule.timer || true
 
