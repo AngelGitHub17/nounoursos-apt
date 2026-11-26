@@ -81,3 +81,7 @@ python3-gi
 # Téléphone (iPhone / Android) et exploration du disque
 kdeconnect
 filelight
+# Aperçu rapide : PDF, vidéo et musique
+python3-pyqt6.qtpdf
+python3-pyqt6.qtmultimedia
+poppler-utils

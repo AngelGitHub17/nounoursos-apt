@@ -1,0 +1,15 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [ { "Name": "NounoursCorp" } ],
+        "Category": "Environment and Weather",
+        "Description": "La météo du moment et des prochains jours (Open-Meteo, sans compte)",
+        "Icon": "weather-few-clouds",
+        "Id": "org.nounoursos.meteo",
+        "License": "GPL-2.0-or-later",
+        "Name": "Météo NounoursOS",
+        "Version": "1.4",
+        "Website": "https://nounourscorp.fr"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

@@ -1,0 +1,15 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [ { "Name": "NounoursCorp" } ],
+        "Category": "Date and Time",
+        "Description": "Vos prochains rendez-vous (iCloud, Google, Nextcloud… par un lien ICS)",
+        "Icon": "view-calendar",
+        "Id": "org.nounoursos.agenda",
+        "License": "GPL-2.0-or-later",
+        "Name": "Agenda NounoursOS",
+        "Version": "1.4",
+        "Website": "https://nounourscorp.fr"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

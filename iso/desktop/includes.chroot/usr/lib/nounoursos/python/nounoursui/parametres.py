@@ -865,19 +865,25 @@ class Settings(QMainWindow):
 
         pg.body.addWidget(label("SUR LE BUREAU", "section"))
         wid = Card()
-        for plugin, titre, sous, y, w, h in (
-                ("org.nounoursos.horloge", "Horloge", "Grande heure et date, en haut à droite", 2, 22, 10),
-                ("org.nounoursos.moniteur", "Moniteur", "Processeur, mémoire, disque, température, réseau", 13, 18, 11)):
+        for plugin, titre, sous, y, w, h, gauche in (
+                ("org.nounoursos.horloge", "Horloge", "Grande heure et date, en haut à droite", 2, 22, 10, False),
+                ("org.nounoursos.moniteur", "Moniteur", "Processeur, mémoire, disque, température, réseau", 13, 18, 11,
+                 False),
+                ("org.nounoursos.meteo", "Météo", "Le temps qu'il fait et les prochains jours (clic droit › "
+                 "Configurer pour choisir la ville)", 25, 18, 12, False),
+                ("org.nounoursos.agenda", "Agenda", "Vos prochains rendez-vous iCloud, Google… (clic droit › "
+                 "Configurer pour ajouter le lien)", 3, 18, 15, True)):
             present = DEMO or "true" in plasma_query(
                 "print(desktops().some(function(d){ return d.widgets('%s').length > 0; }))" % plugin)
             t = Toggle(present)
 
-            def basculer(on, plugin=plugin, y=y, w=w, h=h):
+            def basculer(on, plugin=plugin, y=y, w=w, h=h, gauche=gauche):
                 if on:
+                    x = "3 * u" if gauche else "g.width - (%d + 3) * u" % w
                     plasma_script("desktops().forEach(function(d){ if (!d.widgets('%s').length) {"
                                   " var g = screenGeometry(d.screen); var u = gridUnit;"
-                                  " d.addWidget('%s', g.width - (%d + 3) * u, %d * u, %d * u, %d * u); } })"
-                                  % (plugin, plugin, w, y, w, h))
+                                  " d.addWidget('%s', %s, %d * u, %d * u, %d * u); } })"
+                                  % (plugin, plugin, x, y, w, h))
                 else:
                     plasma_script("desktops().forEach(function(d){ d.widgets('%s').forEach("
                                   "function(x){ x.remove(); }); })" % plugin)

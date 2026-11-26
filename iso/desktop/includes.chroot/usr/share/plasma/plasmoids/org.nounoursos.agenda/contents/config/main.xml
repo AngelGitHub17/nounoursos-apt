@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0">
+  <kcfgfile name=""/>
+  <group name="General">
+    <entry name="Liens" type="String"><default></default></entry>
+    <entry name="Jours" type="Int"><default>7</default></entry>
+  </group>
+</kcfg>

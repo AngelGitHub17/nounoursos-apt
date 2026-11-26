@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Aperçu rapide
+Comment=Regarder un fichier sans ouvrir d'application
+Exec=nounoursos-apercu %f
+Icon=document-preview
+NoDisplay=true
+Terminal=false

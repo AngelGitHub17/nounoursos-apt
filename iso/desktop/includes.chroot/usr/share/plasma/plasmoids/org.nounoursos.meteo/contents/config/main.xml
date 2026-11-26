@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0">
+  <kcfgfile name=""/>
+  <group name="General">
+    <entry name="Ville" type="String"><default>Paris</default></entry>
+    <entry name="Latitude" type="Double"><default>48.8534</default></entry>
+    <entry name="Longitude" type="Double"><default>2.3488</default></entry>
+  </group>
+</kcfg>
