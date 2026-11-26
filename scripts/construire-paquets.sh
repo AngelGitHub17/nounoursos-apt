@@ -200,6 +200,8 @@ take "$P" "$D" "usr/share/kio/servicemenus/nounoursos-*"
 take "$P" "$D" "usr/share/icons/NounoursOS"
 take "$P" "$D" "etc/xdg/kcminputrc"
 take "$P" "$C" "usr/share/icons/hicolor/*/apps/nounoursos.*"
+take "$P" "$C" "usr/bin/nounoursos-minecraft"
+take "$P" "$C" "usr/lib/nounoursos/python/nounours_minecraft.py"
 take "$P" "$C" "usr/share/nounoursos/logo*"
 take "$P" "$C" "usr/share/nounoursos/grub-background.png"
 chmod 755 "$P"/usr/bin/* "$P"/usr/libexec/nounoursos/*

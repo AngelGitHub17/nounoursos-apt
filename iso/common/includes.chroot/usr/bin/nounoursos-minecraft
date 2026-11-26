@@ -1,0 +1,98 @@
+#!/usr/bin/python3
+"""NounoursOS — serveur Minecraft (Paper) en ligne de commande.
+
+  nounoursos-minecraft versions
+  nounoursos-minecraft installer [VERSION] [--memoire N] --accepter-cluf
+  nounoursos-minecraft demarrer | arreter | etat | journal
+  nounoursos-minecraft console "commande"
+  nounoursos-minecraft sauvegarder
+  nounoursos-minecraft au-demarrage on|off
+  nounoursos-minecraft mettre-a-jour
+"""
+import os
+import sys
+
+sys.path.insert(0, "/usr/lib/nounoursos/python")
+import nounours_minecraft as M  # noqa: E402
+
+
+def sortir(msg, code=1):
+    print(msg, file=sys.stderr)
+    sys.exit(code)
+
+
+def barre(pc):
+    print(f"\r  Téléchargement : {pc:3d} %", end="", flush=True)
+
+
+def main(a):
+    if not a or a[0] in ("-h", "--help", "aide"):
+        print(__doc__.strip())
+        return
+    cmd = a[0]
+    try:
+        if cmd == "versions":
+            print("\n".join(M.versions()[:20]))
+        elif cmd in ("installer", "mettre-a-jour"):
+            conf = M.lire()
+            if cmd == "mettre-a-jour":
+                if not conf.get("version"):
+                    sortir("Aucun serveur installé.")
+                version = conf["version"]
+                accepte = True       # déjà accepté à l'installation
+            else:
+                libres = [x for i, x in enumerate(a[1:], 1) if not x.startswith("--") and a[i - 1] != "--memoire"]
+                version = libres[0] if libres else M.versions()[0]
+                accepte = "--accepter-cluf" in a
+                if not accepte:
+                    sortir(f"Lisez le contrat de licence de Minecraft ({M.CLUF}), puis relancez avec "
+                           "--accepter-cluf si vous l'acceptez.")
+            mem = None
+            if "--memoire" in a:
+                mem = int(a[a.index("--memoire") + 1])
+            info = M.infos_version(version)
+            if not M.java_pour(info["java"]):
+                n = M.paquet_java(info["java"])
+                sortir(f"Paper {version} demande Java {info['java']}. Installez-le avec :\n"
+                       f"  sudo apt install openjdk-{n}-jre-headless")
+            if cmd == "mettre-a-jour" and conf.get("build") == info["build"]:
+                print(f"Déjà à jour (Paper {version} n° {info['build']}).")
+                return
+            redemarrer = M.etat() == "active"
+            if redemarrer:
+                M.arreter()
+            print(f"Paper {version} (n° {info['build']})")
+            conf = M.installer(info, accepte, mem, progression=barre)
+            print(f"\nInstallé dans {M.DOSSIER} ({conf['memoire']} Go de mémoire).")
+            if redemarrer:
+                M.demarrer()
+        elif cmd == "demarrer":
+            M.demarrer()
+            print("Démarrage… Adresse : " + (", ".join(M.adresses()) or "?"))
+        elif cmd == "arreter":
+            M.arreter()
+        elif cmd == "etat":
+            c = M.lire()
+            print(f"Serveur : {M.etat()}  ·  Paper {c.get('version', '?')} n° {c.get('build', '?')}")
+            j = M.joueurs()
+            if j:
+                print(f"Joueurs : {j[0]}/{j[1]} {', '.join(j[2])}")
+            print("Adresse : " + (", ".join(M.adresses()) or "?"))
+        elif cmd == "journal":
+            sys.stdout.writelines(M.journal(60))
+        elif cmd == "console":
+            print(M.rcon(" ".join(a[1:])))
+        elif cmd == "sauvegarder":
+            print(M.sauvegarder())
+        elif cmd == "au-demarrage":
+            on = len(a) > 1 and a[1] == "on"
+            M.au_demarrage(on)
+            if on and not os.path.exists(f"/var/lib/systemd/linger/{os.environ.get('USER', '')}"):
+                print("Pour qu'il démarre même sans session ouverte : sudo loginctl enable-linger $USER")
+        else:
+            sortir(f"Commande inconnue : {cmd}\n\n{__doc__.strip()}", 2)
+    except M.ErreurMinecraft as e:
+        sortir(str(e))
+
+
+main(sys.argv[1:])

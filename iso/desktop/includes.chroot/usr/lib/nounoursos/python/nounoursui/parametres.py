@@ -60,6 +60,8 @@ SECTIONS = [
       "winboat windows exe logiciels office photoshop"),
      ("jeu", "Mode jeu", "input-gaming|applications-games", GREEN, "J", None, "",
       "jeux steam gamemode proton pilote nvidia vulkan manette"),
+     ("minecraft", "Serveur Minecraft", "minecraft|applications-games", "#3F8E3C", "M", None, "",
+      "minecraft serveur paper jouer amis monde sauvegarde console java"),
      ("concentration", "Concentration", "preferences-desktop-notification-bell|notifications-disabled", "#5B5BD6",
       "C", None, "", "ne pas deranger focus travail jeu stream notifications horaire mode"),
      ("telephone", "Téléphone", "kdeconnect|smartphone|phone", GREEN, "T", "kcm_kdeconnect", "",
@@ -1291,6 +1293,318 @@ class Settings(QMainWindow):
         proc.readyReadStandardOutput.connect(lire)
         proc.finished.connect(fini)
         proc.start("pkexec", [HELPER, "mode-jeu"])
+
+    # Serveur Minecraft (Paper) -----------------------------------------------------------------
+    def _mc(self):
+        sys.path.insert(0, "/usr/lib/nounoursos/python")
+        import nounours_minecraft as M
+        return M
+
+    def page_minecraft(self):
+        M = self._mc()
+        pg = page("Serveur Minecraft", "Votre propre serveur Paper pour jouer avec vos amis, en un clic. "
+                                       "Il tourne sur cet ordinateur ; vos amis du même réseau le rejoignent "
+                                       "avec l'adresse affichée.")
+        self.mc_msg = label("", "sub", wrap=True)
+        from PyQt6.QtWidgets import QComboBox, QLineEdit, QCheckBox, QProgressBar
+        if not M.installe() and not (DEMO and os.environ.get("NOUNOURSOS_MC_DEMO") == "installe"):
+            card = Card()
+            self.mc_version = QComboBox()
+            self.mc_version.addItem("Recherche des versions…")
+            self.mc_version.setMinimumWidth(150)
+            card.add(SettingRow("Version de Minecraft", "La plus récente est conseillée ; choisissez "
+                                "celle de vos amis si besoin.", self.mc_version, real_icon("", 26, key="minecraft")))
+            self.mc_mem = QComboBox()
+            for g in (2, 3, 4, 6, 8, 12):
+                self.mc_mem.addItem(f"{g} Go", g)
+            self.mc_mem.setCurrentIndex(self.mc_mem.findData(M.memoire_conseillee()))
+            card.add(SettingRow("Mémoire du serveur", "4 Go suffisent pour une dizaine de joueurs.", self.mc_mem))
+            self.mc_nom = QLineEdit("Serveur de " + (os.environ.get("USER") or "NounoursOS"))
+            self.mc_nom.setFixedWidth(230)
+            card.add(SettingRow("Nom affiché", "Dans la liste des serveurs de Minecraft.", self.mc_nom))
+            pg.body.addWidget(card)
+            self.mc_cluf = QCheckBox("J'ai lu et j'accepte le contrat de licence (CLUF) de Minecraft")
+            pg.body.addWidget(self.mc_cluf)
+            lien = label(f'<a href="{M.CLUF}">Lire le CLUF de Minecraft</a>', "sub")
+            lien.setOpenExternalLinks(True)
+            pg.body.addWidget(lien)
+            self.mc_btn = button("Créer le serveur", "primary", self._mc_creer)
+            self.mc_btn.setEnabled(False)
+            self.mc_cluf.toggled.connect(self.mc_btn.setEnabled)
+            pg.body.addWidget(self.mc_btn, 0, Qt.AlignmentFlag.AlignLeft)
+            self.mc_prog = QProgressBar()
+            self.mc_prog.setRange(0, 100)
+            self.mc_prog.hide()
+            pg.body.addWidget(self.mc_prog)
+            pg.body.addWidget(self.mc_msg)
+
+            class Fil(QThread):
+                fini = pyqtSignal(object)
+
+                def run(self):
+                    try:
+                        self.fini.emit(M.versions()[:30])
+                    except M.ErreurMinecraft as e:
+                        self.fini.emit(str(e))
+
+            def remplir(r):
+                self.mc_version.clear()
+                if isinstance(r, str):
+                    self.mc_version.addItem("Hors ligne")
+                    self.mc_msg.setText(r)
+                    return
+                self.mc_version.addItems(r)
+            if DEMO:
+                remplir(["26.3", "26.2", "26.1.2", "1.21.11", "1.21.10"])
+            else:
+                self._mc_fil = Fil()
+                self._mc_fil.fini.connect(remplir)
+                self._mc_fil.start()
+            return finish(pg)
+
+        c = M.lire() if not DEMO else {"version": "26.3", "build": 262, "memoire": 4}
+        etat = M.etat() if not DEMO else "active"
+        card = Card()
+        self.mc_etat = SettingRow(f"Paper {c.get('version', '?')}", "…", None, real_icon("", 26, key="minecraft"))
+        self.mc_bouton = button("Démarrer", "primary", self._mc_marche)
+        self.mc_etat.layout().addWidget(self.mc_bouton)
+        card.add(self.mc_etat)
+        adr = ", ".join(M.adresses()) if not DEMO else "192.168.1.42"
+        copier = button("Copier", "", lambda: QApplication.clipboard().setText(adr.split(",")[0]))
+        card.add(SettingRow("Adresse à donner à vos amis", adr or "Pas de réseau", copier))
+        auto = Toggle(M.au_demarrage_actif() if not DEMO else False)
+        auto.toggled.connect(self._mc_auto)
+        card.add(SettingRow("Démarrer avec l'ordinateur", "Même sans ouvrir de session.", auto))
+        mem = QComboBox()
+        for g in (2, 3, 4, 6, 8, 12):
+            mem.addItem(f"{g} Go", g)
+        mem.setCurrentIndex(max(0, mem.findData(int(c.get("memoire", 4)))))
+
+        def changer_mem(_i):
+            c2 = M.lire()
+            c2["memoire"] = mem.currentData()
+            M.ecrire(c2)
+            M.ecrire_service()
+            self.mc_msg.setText("Mémoire changée : redémarrez le serveur pour l'appliquer.")
+        if not DEMO:
+            mem.currentIndexChanged.connect(changer_mem)
+        card.add(SettingRow("Mémoire du serveur", None, mem))
+        pg.body.addWidget(card)
+
+        pg.body.addWidget(label("CONSOLE", "section"))
+        from PyQt6.QtWidgets import QPlainTextEdit
+        self.mc_console = QPlainTextEdit()
+        self.mc_console.setReadOnly(True)
+        self.mc_console.setMinimumHeight(200)
+        from PyQt6.QtGui import QFontDatabase
+        self.mc_console.setFont(QFontDatabase.systemFont(QFontDatabase.SystemFont.FixedFont))
+        pg.body.addWidget(self.mc_console)
+        self.mc_cmd = QLineEdit()
+        self.mc_cmd.setPlaceholderText("Commande (ex. op MonPseudo, time set day, whitelist add Ami) puis Entrée")
+        self.mc_cmd.returnPressed.connect(self._mc_commande)
+        pg.body.addWidget(self.mc_cmd)
+
+        pg.body.addWidget(label("MONDE", "section"))
+        card2 = Card()
+        der = M.sauvegardes()
+        sous = "Aucune sauvegarde pour l'instant"
+        if der:
+            nom = os.path.basename(der[0])[6:-7]
+            sous = "Dernière : " + self._date_fr(nom[:10] + " " + nom[11:].replace("h", ":") + ":00")
+        card2.add(SettingRow("Sauvegarder le monde", sous + f" · les {M.GARDER} dernières sont gardées",
+                             button("Sauvegarder", "", self._mc_sauver)))
+        card2.add(SettingRow("Dossier du serveur", M.DOSSIER, button("Ouvrir", "", lambda: subprocess.Popen(
+            ["xdg-open", M.DOSSIER]))))
+        card2.add(SettingRow("Mettre à jour Paper", f"Version installée : n° {c.get('build', '?')}",
+                             button("Rechercher", "", self._mc_maj)))
+        card2.add(SettingRow("Supprimer le serveur", "Les sauvegardes du monde sont conservées.",
+                             button("Supprimer", "", self._mc_supprimer)))
+        pg.body.addWidget(card2)
+        pg.body.addWidget(self.mc_msg)
+        self.mc_pg = pg
+        self._mc_rafraichir()
+        self.mc_timer = QTimer(pg)
+        self.mc_timer.timeout.connect(lambda: pg.isVisible() and self._mc_rafraichir())
+        self.mc_timer.start(2500)
+        return finish(pg)
+
+    def _mc_rafraichir(self):
+        M = self._mc()
+        etat = M.etat() if not DEMO else "active"
+        if etat == "active":
+            j = M.joueurs() if not DEMO else (2, 20, ["Camille", "Léo"])
+            txt = "En marche" + (f" · {j[0]}/{j[1]} joueurs" + (" : " + ", ".join(j[2]) if j[2] else "")
+                                 if j else " · démarrage…")
+            self.mc_bouton.setText("Arrêter")
+        elif etat == "activating":
+            txt, _ = "Démarrage…", self.mc_bouton.setText("Arrêter")
+        elif etat == "failed":
+            txt, _ = "Arrêté après une erreur (voir la console)", self.mc_bouton.setText("Démarrer")
+        else:
+            txt, _ = "Arrêté", self.mc_bouton.setText("Démarrer")
+        self.mc_etat.sub.setText(txt)
+        lignes = M.journal(150) if not DEMO else [
+            "[18:30:02 INFO]: Done (12.4s)! For help, type \"help\"\n",
+            "[18:31:15 INFO]: Camille joined the game\n", "[18:32:40 INFO]: Léo joined the game\n"]
+        texte = "".join(lignes)
+        if texte != self.mc_console.toPlainText():
+            bas = self.mc_console.verticalScrollBar()
+            au_bas = bas.value() >= bas.maximum() - 4
+            self.mc_console.setPlainText(texte)
+            if au_bas:
+                bas.setValue(bas.maximum())
+
+    def _mc_marche(self):
+        M = self._mc()
+        if DEMO:
+            return
+        try:
+            if M.etat() in ("active", "activating"):
+                M.arreter()
+            else:
+                M.demarrer()
+        except M.ErreurMinecraft as e:
+            self.mc_msg.setText(str(e))
+        self._mc_rafraichir()
+
+    def _mc_commande(self):
+        M = self._mc()
+        cmd = self.mc_cmd.text().strip().lstrip("/")
+        if not cmd or DEMO:
+            return
+        try:
+            r = M.rcon(cmd)
+            self.mc_msg.setText(("› " + cmd + "  :  " + r) if r else "› " + cmd)
+            self.mc_cmd.clear()
+        except M.ErreurMinecraft as e:
+            self.mc_msg.setText(str(e))
+
+    def _mc_auto(self, on):
+        M = self._mc()
+        if DEMO:
+            return
+        M.au_demarrage(on)
+        if on:
+            QProcess.startDetached("pkexec", [HELPER, "minecraft-linger", "on"])
+
+    def _mc_sauver(self):
+        M = self._mc()
+        if DEMO:
+            return
+        self.mc_msg.setText("Sauvegarde du monde…")
+
+        class Fil(QThread):
+            fini = pyqtSignal(str)
+
+            def run(self):
+                try:
+                    self.fini.emit("Sauvegardé : " + os.path.basename(M.sauvegarder()))
+                except (M.ErreurMinecraft, OSError) as e:
+                    self.fini.emit(f"Échec de la sauvegarde : {e}")
+        self._mc_s = Fil()
+        self._mc_s.fini.connect(self.mc_msg.setText)
+        self._mc_s.start()
+
+    def _mc_installer(self, version, memoire=None, nom=None, accepte=True):
+        """Récupère les infos, installe Java si besoin (pkexec), télécharge Paper."""
+        M = self._mc()
+        self.mc_msg.setText("Préparation…")
+
+        class Fil(QThread):
+            avance = pyqtSignal(int)
+            etape = pyqtSignal(str)
+            fini = pyqtSignal(str)
+            java = pyqtSignal(int)
+
+            def __init__(self):
+                super().__init__()
+                self.info = None
+
+            def run(self):
+                try:
+                    if self.info is None:
+                        self.info = M.infos_version(version)
+                        if not M.java_pour(self.info["java"]):
+                            self.java.emit(M.paquet_java(self.info["java"]))
+                            return
+                    redemarrer = M.etat() == "active"
+                    if redemarrer:
+                        self.etape.emit("Arrêt du serveur…")
+                        M.arreter()
+                    self.etape.emit(f"Téléchargement de Paper {version} (n° {self.info['build']})…")
+                    M.installer(self.info, accepte, memoire, nom or "Serveur NounoursOS", self.avance.emit)
+                    if redemarrer:
+                        M.demarrer()
+                    self.fini.emit("")
+                except (M.ErreurMinecraft, OSError) as e:
+                    self.fini.emit(str(e))
+        fil = Fil()
+        self._mc_inst = fil
+        prog = getattr(self, "mc_prog", None)
+
+        def java(n):
+            self.mc_msg.setText(f"Installation de Java {n} (mot de passe administrateur)…")
+            proc = QProcess(self)
+            self._mc_java = proc
+
+            def ok(code, _st):
+                if code == 0 and M.java_pour(fil.info["java"]):
+                    fil.start()
+                else:
+                    self.mc_msg.setText(f"Java {n} n'a pas pu être installé.")
+                    if getattr(self, "mc_btn", None):
+                        self.mc_btn.setEnabled(True)
+            proc.finished.connect(ok)
+            proc.start("pkexec", [HELPER, "minecraft-java", str(n)])
+
+        def fini(err):
+            if prog:
+                prog.hide()
+            if err:
+                self.mc_msg.setText(err)
+                if getattr(self, "mc_btn", None):
+                    self.mc_btn.setEnabled(True)
+                return
+            self.open_page("minecraft")
+            self.mc_msg.setText("Serveur prêt ! Cliquez sur Démarrer.")
+        fil.java.connect(java)
+        fil.etape.connect(self.mc_msg.setText)
+        if prog:
+            fil.avance.connect(lambda pc: (prog.show(), prog.setValue(pc)))
+        fil.fini.connect(fini)
+        fil.start()
+
+    def _mc_creer(self):
+        v = self.mc_version.currentText()
+        if not v or not v[0].isdigit() or DEMO:
+            return
+        self.mc_btn.setEnabled(False)
+        self._mc_installer(v, self.mc_mem.currentData(), self.mc_nom.text().strip(), self.mc_cluf.isChecked())
+
+    def _mc_maj(self):
+        M = self._mc()
+        if DEMO:
+            return
+        c = M.lire()
+        try:
+            info = M.infos_version(c["version"])
+        except (M.ErreurMinecraft, KeyError) as e:
+            self.mc_msg.setText(str(e))
+            return
+        if info["build"] == c.get("build"):
+            self.mc_msg.setText(f"Paper est à jour (n° {info['build']}).")
+            return
+        self._mc_installer(c["version"])
+
+    def _mc_supprimer(self):
+        M = self._mc()
+        if QMessageBox.question(self, "Serveur Minecraft", "Supprimer le serveur et son monde ?\n\n"
+                                "Les sauvegardes (dossier Minecraft/Sauvegardes) sont conservées.") \
+                != QMessageBox.StandardButton.Yes or DEMO:
+            return
+        M.supprimer_serveur()
+        self.open_page("minecraft")
+        self.mc_msg.setText("Serveur supprimé.")
 
     # Nettoyage --------------------------------------------------------------------------
     GARDER_CACHE = ("nounoursos", "fontconfig", "ksycoca6", "plasmashell", "kwin", "plasma_theme")

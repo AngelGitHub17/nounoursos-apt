@@ -73,6 +73,18 @@ CONF
     run_maj "$1" 2>&1 | tee -a "$LOG"
     exit "${PIPESTATUS[0]:-0}"
     ;;
+  minecraft-java)
+    # Java pour le serveur Minecraft (versions proposées par Debian uniquement)
+    case "$2" in 21|25) ;; *) echo "usage: minecraft-java 21|25" >&2; exit 2 ;; esac
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get install -y "openjdk-$2-jre-headless"
+    ;;
+  minecraft-linger)
+    # Le serveur Minecraft de l'utilisateur peut tourner sans session ouverte
+    u=$(getent passwd "${PKEXEC_UID:-}" | cut -d: -f1)
+    [ -n "$u" ] || { echo "Utilisateur inconnu" >&2; exit 2; }
+    case "$2" in on) loginctl enable-linger "$u" ;; off) loginctl disable-linger "$u" ;; *) exit 2 ;; esac
+    ;;
   instantane-preparer)
     # Retour en arrière : configure snapper (système en Btrfs uniquement)
     /usr/libexec/nounoursos/nounoursos-instantanes
