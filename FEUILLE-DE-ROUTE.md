@@ -72,6 +72,13 @@ Légende : ✅ fait · 🔜 prochaine version · 💡 idée à creuser
 | **Installation automatique** | Installation sans questions (preseed) pour les machines virtuelles Proxmox |
 | **Mises à jour sans surprise** | Rapport hebdomadaire et redémarrage programmé après les mises à jour du noyau |
 
+## NounoursOS for POS et for POS Server 💡
+
+| Édition | Détail |
+|---|---|
+| **NounoursOS for POS** | Poste de caisse : NounoursPOS en plein écran au démarrage, douchette, imprimante de tickets, tiroir-caisse |
+| **NounoursOS for POS Server** | Serveur de magasin : base NounoursPOS, stocks et ventes de toutes les caisses, multi-magasin |
+
 ## Plus tard 💡
 
 - Passage à Debian 14 « Forky » avec assistant de mise à niveau (NounoursOS 2.0)

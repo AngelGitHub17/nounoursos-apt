@@ -2,7 +2,8 @@
 
 Distribution Linux de **NounoursCorp** basée sur **Debian 13 « Trixie »**.
 Trois éditions : **NounoursOS** (`desktop`, KDE Plasma 6), **NounoursOS NT** (`nt`, bureau + couche Windows),
-**NounoursOS Server** (`server`). À côté : **NounoursNT**, un système NT à part entière construit à partir des
+**NounoursOS Server** (`server`). Deux à venir : **NounoursOS for POS** (`pos`, poste de caisse NounoursPOS)
+et **NounoursOS for POS Server** (`pos-server`, serveur de magasin). À côté : **NounoursNT**, un système NT à part entière construit à partir des
 sources de LiberNT (dossier `nounoursnt/`). Version actuelle : voir `iso/VERSION` (1.4 « Miel »).
 
 Tout est en **français** : interface, commentaires, messages de commit, notes de version.
@@ -129,4 +130,8 @@ Applications PyQt6 : `iso/desktop/includes.chroot/usr/lib/nounoursos/python/noun
 - [ ] Fond animé : se mettre en pause quand une fenêtre couvre tout l'écran
 - [ ] 1.5 : démarrer sur un instantané, préférences NounoursAccount synchronisées, aperçu à la barre d'espace
 - [ ] Server : preseed Proxmox, rapport hebdomadaire des mises à jour
+- [ ] Éditions `pos` et `pos-server` (NounoursPOS). La page https://nounourscorp.fr/nounoursos/ (dépôt
+      dkparkofwebOVH, `www4/nounoursos/`) les affiche « Bientôt » jusqu'à ce que la Release contienne
+      `NounoursOS-pos-<version>-amd64.iso` / `NounoursOS-pos-server-<version>-amd64.iso` (ou `.partN` + `.sha256`) :
+      garder exactement ces noms dans iso.yml
 - [ ] 2.0 : Debian 14 « Forky » avec assistant de mise à niveau
