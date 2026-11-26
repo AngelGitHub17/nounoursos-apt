@@ -1,6 +1,7 @@
 """Mise à jour de NounoursOS — fenêtre façon macOS + service de notification."""
 import json
 import os
+import re
 import sys
 import time
 
@@ -345,6 +346,10 @@ class UpdateWindow(QWidget):
                     self.progress.setValue(40 + int(pct * 0.6))
                     pkg = parts[1] if parts[1] not in ("dpkg-exec", "") else ""
                     self.status.setText(f"Installation… {pkg}".strip())
+            elif "Waiting for cache lock" in line or "Could not get lock" in line:
+                m = re.search(r"held by process \d+ \(([^)]+)\)", line)
+                self.status.setText(f"Un autre outil de mise à jour travaille ({m.group(1) if m else 'APT'}), "
+                                    "attente… (5 min au plus)")
             elif line.startswith("Percentage:"):           # ancien format (pkcon)
                 try:
                     self.progress.setValue(int(line.split()[-1]))

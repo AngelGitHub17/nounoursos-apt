@@ -59,6 +59,8 @@ GLYPHS = {
     "jeu": (GREEN, f'<path {S} d="M7.5 7.5h9a4.5 4.5 0 0 1 4.3 5.8l-1.1 3.9a2.3 2.3 0 0 1-3.9.9L13.7 16h-3.4l-2.1 2.1a2.3 2.3 0 0 1-3.9-.9l-1.1-3.9a4.5 4.5 0 0 1 4.3-5.8z"/><path {S} d="M8 10.3v3.4M6.3 12h3.4"/><circle {F} cx="15.6" cy="11" r="1.1"/><circle {F} cx="17.4" cy="13.3" r="1.1"/>'),
     "telephone": (GREEN, f'<rect {S} x="6.5" y="2.8" width="11" height="18.4" rx="2.6"/><path {S3} d="M10.5 18h3"/>'),
     "nettoyage": (TEAL, f'<path {S} d="M14.5 3.5l-3.2 7.2"/><path {F} d="M8.2 10.2h7.6l1.6 2.4-1.5 8H8.1l-1.5-8z"/><path fill="none" stroke="{TEAL}" stroke-width="1.6" stroke-linecap="round" d="M10.3 14.5v3.5M13.7 14.5v3.5"/>'),
+    "partage": (BLUE, f'<path {S} d="M20.5 3.5L10.2 13.8"/><path {S} d="M20.5 3.5l-6.6 17-3.7-7.2-7.2-3.7z"/>'),
+    "compte": (HONEY, f'<circle {S} cx="12" cy="9" r="3.6"/><path {S} d="M5.2 19.5a6.8 6.8 0 0 1 13.6 0"/><circle {F} cx="8.6" cy="5.2" r="1.5"/><circle {F} cx="15.4" cy="5.2" r="1.5"/>'),
     "tous": (GREY, f'<path {S} d="M12 2.8l1.6 2.5 2.9-.6.6 2.9 2.5 1.6-1.5 2.6 1.5 2.6-2.5 1.6-.6 2.9-2.9-.6-1.6 2.5-1.6-2.5-2.9.6-.6-2.9-2.5-1.6 1.5-2.6-1.5-2.6 2.5-1.6.6-2.9 2.9.6z"/><circle {S} cx="12" cy="12" r="3"/>'),
 }
 

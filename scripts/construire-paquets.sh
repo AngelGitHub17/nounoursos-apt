@@ -311,6 +311,8 @@ M="$ROOT/scripts/miroir-github.py"
 python3 "$M" winboat-org/winboat '-amd64\.deb$' winboat "$OUT" \
   || python3 "$M" TibixDev/winboat '-amd64\.deb$' winboat "$OUT" || true
 python3 "$M" AngelGitHub17/Nounours-Launcher '_amd64\.deb$' nounours-launcher "$OUT" || true
+# Partage façon AirDrop avec iPhone, Mac, Windows, Android
+python3 "$M" localsend/localsend 'linux-x86-64\.deb$' localsend "$OUT" || true
 # Dépôt privé : jeton dédié (secret NOUNOURS_BROWSER_TOKEN)
 TOKEN_VAR=BROWSER_TOKEN python3 "$M" AngelGitHub17/Nounours-Browser '_amd64\.deb$' nounours-browser "$OUT" || true
 

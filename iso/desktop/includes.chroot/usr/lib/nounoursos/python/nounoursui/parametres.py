@@ -44,7 +44,9 @@ SECTIONS = [
     [("notifications", "Notifications", "preferences-desktop-notification-bell", RED, "N",
       "kcm_notifications", "", "ne pas deranger alertes"),
      ("son", "Son", "preferences-desktop-sound", RED, "S", None, "", "volume haut-parleur micro audio")],
-    [("maj", "Mise à jour", "system-software-update", GREY, "M", None, "", "mises a jour version securite"),
+    [("compte", "NounoursAccount", "user-identity|im-user", HONEY, "N", None, "",
+      "compte nounoursaccount connexion nounourscorp pieces profil sites"),
+     ("maj", "Mise à jour", "system-software-update", GREY, "M", None, "", "mises a jour version securite"),
      ("capsule", "Capsule temporelle", "backup|document-save", TEAL, "C", None, "",
       "sauvegarde backup time machine restaurer disque externe fichiers perdus"),
      ("apropos", "À propos", "hwinfo|computer|help-about", GREY, "i", None, "",
@@ -55,6 +57,8 @@ SECTIONS = [
       "jeux steam gamemode proton pilote nvidia vulkan manette"),
      ("telephone", "Téléphone", "kdeconnect|smartphone|phone", GREEN, "T", "kcm_kdeconnect", "",
       "iphone android kde connect sms notifications fichiers partage"),
+     ("partage", "Partage de fichiers", "document-send|folder-network", BLUE, "P", None, "",
+      "airdrop localsend envoyer fichiers iphone mac windows android partager"),
      ("nettoyage", "Nettoyage", "edit-clear-all|user-trash-full", TEAL, "N", None, "",
       "espace disque plein libérer cache corbeille stockage")],
     [("apparence", "Apparence", "preferences-desktop-theme-global", "#3B2A4F", "A", None, "",
@@ -332,7 +336,9 @@ class Settings(QMainWindow):
         self.search.setClearButtonEnabled(True)
         self.search.textChanged.connect(self.filter)
         sv.addWidget(self.search)
-        sv.addWidget(self.user_card())
+        carte = self.user_card()
+        carte.setObjectName("CarteCompte")
+        sv.addWidget(carte)
         self.list = QListWidget()
         self.list.setIconSize(QSize(24, 24))
         self.list.setItemDelegate(SidebarDelegate(self.list))
@@ -361,28 +367,33 @@ class Settings(QMainWindow):
 
     # --- Barre latérale ------------------------------------------------------
     def user_card(self):
+        from . import compte
         login, full = user_info()
+        na = compte.utilisateur() or ({"name": "Camille", "username": "camille"} if DEMO else None)
         w = QFrame()
         w.setCursor(Qt.CursorShape.PointingHandCursor)
         lay = QHBoxLayout(w)
         lay.setContentsMargins(6, 6, 6, 6)
         av = QLabel()
         face = os.path.expanduser("~/.face.icon")
+        if na and os.path.exists(compte.AVATAR):
+            face = compte.AVATAR
         if os.path.exists(face):
             pm = QPixmap(face).scaled(44, 44, Qt.AspectRatioMode.KeepAspectRatioByExpanding,
                                       Qt.TransformationMode.SmoothTransformation)
         else:
-            pm = tile_icon(None, HONEY, 44, (full or login)[:1].upper())
+            pm = tile_icon(None, HONEY, 44, ((na or {}).get("name") or full or login)[:1].upper())
         av.setPixmap(pm)
         lay.addWidget(av)
         v = QVBoxLayout()
         v.setSpacing(0)
-        n = label(full)
+        n = label((na or {}).get("name") or full)
         n.setStyleSheet("font-weight: 700; font-size: 10.5pt;")
         v.addWidget(n)
-        v.addWidget(label("Compte NounoursOS", "sub"))
+        v.addWidget(label("NounoursAccount · @" + na.get("username", "") if na else
+                          "Se connecter à NounoursAccount", "sub"))
         lay.addLayout(v, 1)
-        w.mouseReleaseEvent = lambda e: self.select("utilisateurs")
+        w.mouseReleaseEvent = lambda e: self.select("compte")
         return w
 
     def fill_list(self):
@@ -947,6 +958,166 @@ class Settings(QMainWindow):
             self.maj_title.setText("NounoursOS est à jour")
             self.maj_sub.setText(f"NounoursOS {rel.get('VERSION_ID', '')} « {rel.get('NOUNOURSOS_CODENAME', '')} »")
             self.maj_btn.setText("Rechercher des mises à jour")
+
+    # NounoursAccount -----------------------------------------------------------------------
+    def page_compte(self):
+        from . import compte
+        pg = page("NounoursAccount", "Votre compte NounoursCorp, le même que sur les sites et NounoursLauncher.")
+        user = compte.utilisateur() or ({"name": "Camille", "username": "camille", "coins": 120} if DEMO else None)
+        card = Card(margins=(18, 16, 18, 16))
+        if user:
+            box = QWidget()
+            h = QHBoxLayout(box)
+            h.setContentsMargins(0, 0, 0, 0)
+            av = QLabel()
+            pm = QPixmap(compte.AVATAR) if os.path.exists(compte.AVATAR) else \
+                tile_icon(None, HONEY, 64, (user.get("name") or "?")[:1].upper())
+            av.setPixmap(pm.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                                   Qt.TransformationMode.SmoothTransformation))
+            h.addWidget(av)
+            v = QVBoxLayout()
+            v.addWidget(label(user.get("name") or user.get("username", ""), "h2"))
+            v.addWidget(label(f"@{user.get('username', '')}" + (" · administrateur" if user.get("admin") else ""),
+                              "sub"))
+            if user.get("coins") is not None:
+                v.addWidget(label(f"🪙 {user['coins']} pièces", "sub"))
+            h.addLayout(v, 1)
+            card.add(box)
+            pg.body.addWidget(card)
+            pg.body.addWidget(label("VOS SITES", "section"))
+            sites = Card()
+            for nom, url in compte.SITES:
+                r = SettingRow(nom, url.replace("https://", "").rstrip("/"), None, chevron=True)
+                r.clicked.connect(lambda u=url: spawn(["xdg-open", u]))
+                sites.add(r)
+            pg.body.addWidget(sites)
+            pg.body.addWidget(button("Se déconnecter de cet ordinateur", None, lambda: (
+                compte.deconnecter(), self._rafraichir_compte())), 0, Qt.AlignmentFlag.AlignLeft)
+            return finish(pg)
+
+        card.add(SettingRow("Pas encore connecté", "Connectez-vous pour retrouver votre profil, vos pièces et "
+                            "un accès direct à vos sites NounoursCorp.", None, real_icon("", 30, key="compte")))
+        pg.body.addWidget(card)
+        self.na_btn = button("Se connecter avec NounoursAccount", "primary", self._compte_commencer)
+        pg.body.addWidget(self.na_btn, 0, Qt.AlignmentFlag.AlignLeft)
+        self.na_code = label("", "title", align=Qt.AlignmentFlag.AlignCenter)
+        self.na_code.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.na_code.hide()
+        pg.body.addWidget(self.na_code)
+        self.na_msg = label("", "sub", wrap=True)
+        pg.body.addWidget(self.na_msg)
+        return finish(pg)
+
+    def _rafraichir_compte(self):
+        self.open_page("compte")
+        old = self.findChild(QFrame, "CarteCompte")
+        if old is not None:
+            nouveau = self.user_card()
+            nouveau.setObjectName("CarteCompte")
+            old.parentWidget().layout().replaceWidget(old, nouveau)
+            old.deleteLater()
+
+    def _compte_commencer(self):
+        from . import compte
+        if DEMO:
+            self.na_code.setText("K7QM-2XPA")
+            self.na_code.show()
+            self.na_msg.setText("[démo] Ouvrez nounourscorp.fr/launcher/connect.php et saisissez ce code.")
+            return
+        self.na_btn.setEnabled(False)
+        self.na_msg.setText("Connexion à NounoursAccount…")
+        try:
+            d = compte.commencer()
+        except compte.ErreurCompte as e:
+            self.na_btn.setEnabled(True)
+            self.na_msg.setText(str(e))
+            return
+        self.na_code.setText(d["code"])
+        self.na_code.show()
+        self.na_msg.setText("Une page de connexion s'ouvre dans le navigateur : validez-y ce code (déjà connecté "
+                            "à NounoursAccount ? un clic suffit). Le code est valable 10 minutes.")
+        spawn(["xdg-open", d["url"]])
+        self._na_poll = d["poll"]
+        self._na_essais = int(d.get("expires_in", 600)) // 3
+        self._na_timer = QTimer(self)
+        self._na_timer.timeout.connect(self._compte_verifier)
+        self._na_timer.start(3000)
+
+    def _compte_verifier(self):
+        from . import compte
+        self._na_essais -= 1
+        try:
+            user = compte.verifier(self._na_poll)
+        except compte.ErreurCompte as e:
+            self._na_timer.stop()
+            self.na_btn.setEnabled(True)
+            self.na_code.hide()
+            self.na_msg.setText(str(e))
+            return
+        if user:
+            self._na_timer.stop()
+            self._rafraichir_compte()
+        elif self._na_essais <= 0:
+            self._na_timer.stop()
+            self.na_btn.setEnabled(True)
+            self.na_code.hide()
+            self.na_msg.setText("Le code a expiré. Recommencez la connexion.")
+
+    # Partage de fichiers (LocalSend) ------------------------------------------------------
+    @staticmethod
+    def _localsend_desktop():
+        for d in ("/usr/share/applications", os.path.expanduser("~/.local/share/applications")):
+            try:
+                for f in sorted(os.listdir(d)):
+                    if f.endswith(".desktop") and "localsend" in f.lower():
+                        return os.path.join(d, f)
+            except OSError:
+                pass
+        return "/usr/share/applications/localsend_app.desktop" if DEMO else None
+
+    def page_partage(self):
+        pg = page("Partage de fichiers",
+                  "Envoyez photos, vidéos et documents entre NounoursOS, votre iPhone, votre Mac, un PC Windows "
+                  "ou un téléphone Android, comme avec AirDrop. Tout passe par votre réseau Wi-Fi, sans Internet "
+                  "ni compte.")
+        bureau = self._localsend_desktop()
+        card = Card()
+        card.add(SettingRow("LocalSend", "Installé et prêt" if bureau else
+                            "Pas installé : il arrive avec les mises à jour de NounoursOS.",
+                            None, real_icon("", 30, key="partage")))
+        if bureau:
+            auto = os.path.join(os.path.expanduser("~/.config/autostart"), os.path.basename(bureau))
+            t = Toggle(os.path.exists(auto))
+
+            def demarrage(on):
+                if on:
+                    os.makedirs(os.path.dirname(auto), exist_ok=True)
+                    with open(bureau) as f:
+                        txt = f.read()
+                    # Démarre discrètement dans la zone de notification pour pouvoir recevoir
+                    txt = re.sub(r"^Exec=(\S+).*$", r"Exec=\1 --hidden", txt, count=1, flags=re.M)
+                    with open(auto, "w") as f:
+                        f.write(txt)
+                elif os.path.exists(auto):
+                    os.unlink(auto)
+            t.toggled.connect(demarrage)
+            card.add(SettingRow("Pouvoir recevoir à tout moment",
+                                "LocalSend démarre avec l'ordinateur, discrètement, pour accepter les envois.", t))
+        pg.body.addWidget(card)
+        if bureau:
+            pg.body.addWidget(button("Ouvrir LocalSend", "primary", lambda: spawn(["kioclient", "exec", bureau])),
+                              0, Qt.AlignmentFlag.AlignLeft)
+        pg.body.addWidget(label("SUR VOS AUTRES APPAREILS", "section"))
+        aide = Card()
+        for titre, detail in (("iPhone et iPad", "Installez « LocalSend » depuis l'App Store."),
+                              ("Mac", "Installez « LocalSend » depuis l'App Store ou localsend.org."),
+                              ("Windows et Android", "Installez « LocalSend » depuis le Microsoft Store, "
+                                                     "le Play Store ou localsend.org.")):
+            aide.add(SettingRow(titre, detail, None))
+        pg.body.addWidget(aide)
+        pg.body.addWidget(label("Les appareils doivent être sur le même réseau Wi-Fi. Ils apparaissent tout seuls "
+                                "dans LocalSend : choisissez-en un, puis les fichiers à envoyer.", "sub", wrap=True))
+        return finish(pg)
 
     # Mode jeu ----------------------------------------------------------------------------
     def page_jeu(self):

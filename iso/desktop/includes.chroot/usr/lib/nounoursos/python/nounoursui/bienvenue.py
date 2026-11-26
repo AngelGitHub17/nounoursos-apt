@@ -204,7 +204,8 @@ class Assistant(Shell):
         nav.addWidget(self.next_b)
         self.body.addLayout(nav)
 
-        for build in (self.p_hello, self.p_look, self.p_layout, self.p_apps, self.p_updates, self.p_done):
+        for build in (self.p_hello, self.p_look, self.p_layout, self.p_apps, self.p_compte, self.p_updates,
+                      self.p_done):
             self.stack.addWidget(build())
         self.go(0)
 
@@ -355,6 +356,82 @@ class Assistant(Shell):
         lay.addLayout(grid)
         lay.addStretch()
         return w
+
+    def p_compte(self):
+        w, lay = self._page("Votre compte NounoursAccount",
+                            "Facultatif : retrouvez votre profil, vos pièces et vos sites NounoursCorp. "
+                            "Vous pourrez aussi le faire plus tard dans Paramètres.")
+        ic = QLabel()
+        ic.setPixmap(QIcon(os.path.join(DATA, "icones", "compte.svg")).pixmap(88, 88))
+        lay.addWidget(ic, 0, Qt.AlignmentFlag.AlignHCenter)
+        lay.addSpacing(6)
+        avantages = Card()
+        for titre, detail in (("Votre profil", "Votre nom et votre avatar NounoursCorp dans Paramètres."),
+                              ("Vos pièces", "Le même solde que dans NounoursLauncher."),
+                              ("Vos sites", "NounoursCorp, NSDKPlus, NounoursTV… à un clic.")):
+            avantages.add(SettingRow(titre, detail, None))
+        lay.addWidget(avantages)
+        lay.addSpacing(10)
+        card = Card(margins=(18, 16, 18, 16))
+        box = QWidget()
+        v = QVBoxLayout(box)
+        v.setContentsMargins(0, 0, 0, 0)
+        self.na_info = label("", "sub", wrap=True, align=Qt.AlignmentFlag.AlignCenter)
+        self.na_code = label("", "title", align=Qt.AlignmentFlag.AlignCenter)
+        self.na_code.hide()
+        self.na_go = button("Se connecter avec NounoursAccount", "primary", self._na_commencer)
+        v.addWidget(self.na_go, 0, Qt.AlignmentFlag.AlignHCenter)
+        v.addWidget(self.na_code)
+        v.addWidget(self.na_info)
+        card.add(box)
+        lay.addWidget(card)
+        lay.addStretch()
+        return w
+
+    def _na_commencer(self):
+        from . import compte
+        if DEMO:
+            self.na_code.setText("K7QM-2XPA")
+            self.na_code.show()
+            self.na_info.setText("Validez ce code sur la page qui vient de s'ouvrir.")
+            return
+        self.na_go.setEnabled(False)
+        try:
+            d = compte.commencer()
+        except compte.ErreurCompte as e:
+            self.na_go.setEnabled(True)
+            self.na_info.setText(str(e) + " Vous pourrez vous connecter plus tard dans Paramètres.")
+            return
+        self.na_code.setText(d["code"])
+        self.na_code.show()
+        self.na_info.setText("Validez ce code sur la page qui vient de s'ouvrir dans le navigateur.")
+        spawn(["xdg-open", d["url"]])
+        self._na_poll, self._na_n = d["poll"], int(d.get("expires_in", 600)) // 3
+        self._na_t = QTimer(self)
+        self._na_t.timeout.connect(self._na_verifier)
+        self._na_t.start(3000)
+
+    def _na_verifier(self):
+        from . import compte
+        self._na_n -= 1
+        try:
+            user = compte.verifier(self._na_poll)
+        except compte.ErreurCompte as e:
+            self._na_t.stop()
+            self.na_go.setEnabled(True)
+            self.na_code.hide()
+            self.na_info.setText(str(e))
+            return
+        if user:
+            self._na_t.stop()
+            self.na_code.hide()
+            self.na_go.hide()
+            self.na_info.setText(f"Connecté en tant que {user.get('name') or user.get('username')} ✓")
+        elif self._na_n <= 0:
+            self._na_t.stop()
+            self.na_go.setEnabled(True)
+            self.na_code.hide()
+            self.na_info.setText("Le code a expiré. Réessayez, ou continuez sans compte.")
 
     def p_updates(self):
         w, lay = self._page("Restez à jour",
