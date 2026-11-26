@@ -32,15 +32,23 @@ Légende : ✅ fait · 🔜 prochaine version · 💡 idée à creuser
 - Mises à jour : recherche via `nounoursos-maj-recherche` (pkexec sans mot de passe), bornée et expliquée
 - Capsule temporelle (rsync + liens durs, rétention façon Time Machine), recherche `Alt+Espace` avec réglages et actions, Mode jeu, Téléphone (KDE Connect), Nettoyage
 
-## 1.4 🔜 — Confort façon macOS
+## 1.4 « Miel » ✅
+
+- Centre de contrôle (plasmoïde), modes Concentration (Ne pas déranger, applis, fond, horaires)
+- Venir de Windows (fichiers + favoris), Retour en arrière (Btrfs + Snapper, installateur en Btrfs par défaut)
+- Aperçu rapide (clic droit dans Dolphin), partage LocalSend, widgets Météo (Open-Meteo) et Agenda (.ics)
+- NounoursAccount (assistant + Paramètres), serveur Minecraft Paper en 1 clic, kit streamer OBS
+- Curseur NounoursOS et nouveaux sons
+- Server : Cockpit aux couleurs NounoursOS, rôles Web (PHP/MariaDB), Jellyfin, Minecraft
+- *Reporté : démarrer sur un instantané depuis le menu de démarrage (grub-btrfs n'est pas dans Debian 13), aperçu avec la barre d'espace dans Dolphin, synchronisation des préférences NounoursAccount, multidiffusion sans service tiers*
+
+## 1.5 🔜
 
 | Fonction | Détail |
 |---|---|
-| **Instantanés du système** | Btrfs + Snapper : revenir en arrière après une mise à jour ratée, depuis le menu de démarrage |
-| **Centre de contrôle** | Panneau de réglages rapides (Wi-Fi, son, luminosité, Ne pas déranger) dans la barre |
-| **Compte NounoursAccount** | Connexion avec NounoursAccount dans l'assistant de bienvenue (photo, nom, préférences synchronisées) |
-| **Kit streamer** | Option dans l'assistant : OBS Studio préconfiguré (multistream Twitch / YouTube / Kick) |
-| **Mode jeu** | Steam, GameMode et pilotes graphiques en un clic depuis Paramètres |
+| **Démarrer sur un instantané** | Entrées du menu de démarrage pour les instantanés (grub-btrfs ou équivalent) |
+| **NounoursAccount** | Préférences synchronisées entre machines (fond, teinte, dispositions) |
+| **Aperçu à la barre d'espace** | Raccourci dans Dolphin |
 
 ## LiberNT et NounoursNT ✅ (aperçu)
 
@@ -61,8 +69,6 @@ Légende : ✅ fait · 🔜 prochaine version · 💡 idée à creuser
 
 | Fonction | Détail |
 |---|---|
-| **Tableau de bord web** | Cockpit aux couleurs NounoursOS pour gérer le serveur depuis un navigateur |
-| **Rôles prêts à l'emploi** | Serveur Minecraft (Paper), Jellyfin, serveur web PHP/MySQL… installés et configurés en une commande |
 | **Installation automatique** | Installation sans questions (preseed) pour les machines virtuelles Proxmox |
 | **Mises à jour sans surprise** | Rapport hebdomadaire et redémarrage programmé après les mises à jour du noyau |
 
@@ -70,4 +76,3 @@ Légende : ✅ fait · 🔜 prochaine version · 💡 idée à creuser
 
 - Passage à Debian 14 « Forky » avec assistant de mise à niveau (NounoursOS 2.0)
 - Version ARM (Raspberry Pi 5)
-- Lien avec l'iPhone (KDE Connect : notifications, fichiers, presse-papiers)

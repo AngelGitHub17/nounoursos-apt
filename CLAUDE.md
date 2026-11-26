@@ -3,7 +3,7 @@
 Distribution Linux de **NounoursCorp** basée sur **Debian 13 « Trixie »**.
 Trois éditions : **NounoursOS** (`desktop`, KDE Plasma 6), **NounoursOS NT** (`nt`, bureau + couche Windows),
 **NounoursOS Server** (`server`). À côté : **NounoursNT**, un système NT à part entière construit à partir des
-sources de LiberNT (dossier `nounoursnt/`). Version actuelle : voir `iso/VERSION` (1.3 « Origami »).
+sources de LiberNT (dossier `nounoursnt/`). Version actuelle : voir `iso/VERSION` (1.4 « Miel »).
 
 Tout est en **français** : interface, commentaires, messages de commit, notes de version.
 
@@ -41,11 +41,12 @@ iso/
   common/ desktop/ server/ Couches live-build (package-lists, hooks/live, includes.chroot)
   nt/                     Posée par-dessus desktop/ : pin noyau backports, Wine, nounoursos-exe
   assets/                 Générateurs : identite.py (logo, fonds, GRUB, Plymouth, SDDM, installateur, ISO),
-                          icones.py (icônes Paramètres), make-themes.py (teintes + fonds assortis)
+                          icones.py (icônes Paramètres), make-themes.py (teintes + fonds assortis),
+                          curseur.py, sons.py, streamer.py (écrans OBS), cockpit.py (Cockpit Server)
   bootloaders/splash.svg  Menu de démarrage de l'ISO
   outils/                 fusionner-iso.bat / .sh (ISO > 2 Gio découpée)
 scripts/
-  construire-paquets.sh   .deb : nounoursos-release, -desktop, -nt, -archive-keyring (+ miroirs)
+  construire-paquets.sh   .deb : nounoursos-release, -desktop, -nt, -minecraft, -server, -archive-keyring (+ miroirs)
   miroir-github.py        Copie les .deb des Releases (winboat, nounours-launcher, nounours-browser)
 src/kcm-pont/             Pont C++ : modules KDE (KCM) affichés DANS Paramètres
 nouveautes/X.Y.md         Notes de version (affichées dans Mise à jour et la Release)
@@ -53,7 +54,8 @@ nouveautes/X.Y.md         Notes de version (affichées dans Mise à jour et la R
 ```
 
 Applications PyQt6 : `iso/desktop/includes.chroot/usr/lib/nounoursos/python/nounoursui/`
-(`parametres`, `bienvenue`, `maj`, `veille`, `kcm`, `updates`, `capsule`).
+(`parametres`, `bienvenue`, `maj`, `veille`, `kcm`, `updates`, `capsule`, `compte`, `concentration`,
+`apercu`, `migration`, `streamer`). Moteur Minecraft sans Qt : `iso/common/…/python/nounours_minecraft.py`.
 
 ## Identité
 
@@ -85,6 +87,10 @@ Applications PyQt6 : `iso/desktop/includes.chroot/usr/lib/nounoursos/python/noun
   `gdbus call --session -d fr.nounourscorp.Recherche -o /recherche -m org.kde.krunner1.Match wifi`.
 - Écran de connexion : `sddm-greeter-qt6 --test-mode --theme …/sddm/themes/nounoursos` sous Xvfb.
 - Capsule : `HOME=<faux dossier> python3` + `nounoursui.capsule.sauvegarder()`, vérifier les liens durs.
+- Cockpit (Server) : `cockpit-ws --no-tls --port 9090 --local-session=cockpit-bridge` dans un conteneur,
+  puis Chromium headless sur `http://127.0.0.1:9090/cockpit/@localhost/nounoursos/index.html`
+  (attendre ~10 s : la page interroge `nounoursos-roles etat`).
+- Minecraft : `NOUNOURSOS_MINECRAFT=<dossier> nounoursos-minecraft installer 1.21.11 --accepter-cluf`.
 
 ## Tâches
 
@@ -101,6 +107,11 @@ Applications PyQt6 : `iso/desktop/includes.chroot/usr/lib/nounoursos/python/noun
 - [x] Mises à jour : recherche fiable (pkexec sans mot de passe, délais bornés, erreurs expliquées)
 - [x] Capsule temporelle, recherche Alt+Espace (module KRunner D-Bus), Mode jeu, Téléphone, Nettoyage
 
+### Fait (1.4 « Miel »)
+- [x] Centre de contrôle, Concentration, Venir de Windows, Retour en arrière (Btrfs + Snapper), Aperçu rapide
+- [x] LocalSend, widgets Météo/Agenda, NounoursAccount, Minecraft en 1 clic, kit streamer OBS, curseur et sons
+- [x] Server : Cockpit NounoursOS + rôles (paquets `nounoursos-server`, `nounoursos-minecraft`)
+
 ### Fait (LiberNT / NounoursNT)
 - [x] LiberNT dans NounoursOS NT (image officielle dans QEMU, section Paramètres, entrée de menu)
 - [x] NounoursNT : rebaptême (textes + images), workflow de construction et de publication
@@ -111,11 +122,11 @@ Applications PyQt6 : `iso/desktop/includes.chroot/usr/lib/nounoursos/python/noun
       LiberNT, storport pour NounoursNT) ; le commit de la dernière version publiée ne se compile plus (Mesa).
       Relancer `nounoursnt.yml` avec `comparer` coché et lire `serie.log` + captures avant de cocher `publier`.
 - [ ] Supprimer la Release `nounoursnt-20261124-853cdc5a42b` (publiée avant le test, ne démarre pas)
-- [ ] Tester les ISO 1.3 en VM : connexion SDDM, Capsule sur disque USB, recherche, NT (`/dev/ntsync`, un `.exe`)
+- [ ] Tester les ISO 1.4 en VM : installation Btrfs + Retour en arrière, Centre de contrôle, Venir de Windows,
+      Cockpit (https://<ip>:9090) et ses rôles, NT (`/dev/ntsync`, un `.exe`)
 - [ ] Reconnaissance du visage (attendre un Howdy empaqueté pour Debian 13)
 - [ ] NT : Wine avec ntsync, un préfixe par programme, raccourcis automatiques dans le menu
 - [ ] Fond animé : se mettre en pause quand une fenêtre couvre tout l'écran
-- [ ] Curseur NounoursOS (à dessiner)
-- [ ] 1.4 : instantanés du système (Btrfs + Snapper), centre de contrôle, NounoursAccount dans l'assistant, kit streamer OBS
-- [ ] Server : tableau de bord Cockpit NounoursOS, rôles (Minecraft Paper, Jellyfin, web PHP/MySQL), preseed Proxmox
+- [ ] 1.5 : démarrer sur un instantané, préférences NounoursAccount synchronisées, aperçu à la barre d'espace
+- [ ] Server : preseed Proxmox, rapport hebdomadaire des mises à jour
 - [ ] 2.0 : Debian 14 « Forky » avec assistant de mise à niveau
