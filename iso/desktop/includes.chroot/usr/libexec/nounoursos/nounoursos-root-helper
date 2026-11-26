@@ -73,6 +73,11 @@ CONF
     run_maj "$1" 2>&1 | tee -a "$LOG"
     exit "${PIPESTATUS[0]:-0}"
     ;;
+  streamer-obs)
+    # Kit streamer : OBS Studio depuis Debian
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get install -y obs-studio
+    ;;
   minecraft-java)
     # Java pour le serveur Minecraft (versions proposées par Debian uniquement)
     case "$2" in 21|25) ;; *) echo "usage: minecraft-java 21|25" >&2; exit 2 ;; esac

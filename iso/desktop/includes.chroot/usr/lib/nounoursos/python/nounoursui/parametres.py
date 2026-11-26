@@ -62,6 +62,8 @@ SECTIONS = [
       "jeux steam gamemode proton pilote nvidia vulkan manette"),
      ("minecraft", "Serveur Minecraft", "minecraft|applications-games", "#3F8E3C", "M", None, "",
       "minecraft serveur paper jouer amis monde sauvegarde console java"),
+     ("streamer", "Kit streamer", "com.obsproject.Studio|obs|camera-web", "#9146FF", "S", None, "",
+      "stream live obs twitch youtube kick direct scenes cle diffusion streamer"),
      ("concentration", "Concentration", "preferences-desktop-notification-bell|notifications-disabled", "#5B5BD6",
       "C", None, "", "ne pas deranger focus travail jeu stream notifications horaire mode"),
      ("telephone", "Téléphone", "kdeconnect|smartphone|phone", GREEN, "T", "kcm_kdeconnect", "",
@@ -1605,6 +1607,140 @@ class Settings(QMainWindow):
         M.supprimer_serveur()
         self.open_page("minecraft")
         self.mc_msg.setText("Serveur supprimé.")
+
+    # Kit streamer (OBS) -------------------------------------------------------------------
+    def page_streamer(self):
+        from . import streamer as ST
+        from PyQt6.QtWidgets import QComboBox, QLineEdit
+        pg = page("Kit streamer", "OBS Studio prêt à diffuser : scènes NounoursOS (bientôt, en direct, pause, "
+                                  "fin), réglages 1080p et votre plateforme.")
+        self.st_msg = label("", "sub", wrap=True)
+        card = Card()
+        obs = ST.obs_installe() or DEMO
+        if not obs:
+            card.add(SettingRow("OBS Studio", "Le logiciel de diffusion (environ 150 Mo).",
+                                button("Installer", "primary", self._st_installer), real_icon("", 26, key="streamer")))
+        else:
+            pret = ST.kit_present() or DEMO
+            b = button("Réinitialiser" if pret else "Préparer", "" if pret else "primary", self._st_preparer)
+            card.add(SettingRow("Scènes et profil NounoursOS",
+                                "Prêts dans OBS." if pret else "Écrans « Ça commence bientôt », « Pause » et "
+                                "« Fin », capture de l'écran, caméra encadrée, micro.", b,
+                                real_icon("", 26, key="streamer")))
+            card.add(SettingRow("Ouvrir OBS Studio", None, button("Ouvrir", "", lambda: DEMO or ST.lancer())))
+        pg.body.addWidget(card)
+
+        if obs:
+            pg.body.addWidget(label("PLATEFORME", "section"))
+            c2 = Card()
+            actuelle, a_cle = ST.plateforme() if not DEMO else ("twitch", True)
+            self.st_plat = QComboBox()
+            for k, p in ST.PLATEFORMES.items():
+                self.st_plat.addItem(p["nom"], k)
+            self.st_plat.setCurrentIndex(max(0, self.st_plat.findData(actuelle or "twitch")))
+            c2.add(SettingRow("Diffuser sur", None, self.st_plat))
+            self.st_cle = QLineEdit()
+            self.st_cle.setEchoMode(QLineEdit.EchoMode.Password)
+            self.st_cle.setPlaceholderText("Clé enregistrée" if a_cle else "Collez votre clé de stream")
+            self.st_cle.setFixedWidth(260)
+            self.st_lien = label("", "sub")
+            self.st_lien.setOpenExternalLinks(True)
+            ligne_cle = SettingRow("Clé de stream", None, self.st_cle)
+            c2.add(ligne_cle)
+            self.st_serveur = QLineEdit(ST.serveur_actuel() if not DEMO else "")
+            self.st_serveur.setPlaceholderText("rtmp://…")
+            self.st_serveur.setFixedWidth(260)
+            self.st_ligne_serveur = SettingRow("Adresse du serveur", "Affichée dans le tableau de bord de "
+                                               "la plateforme.", self.st_serveur)
+            c2.add(self.st_ligne_serveur)
+            sep = c2.lay.itemAt(c2.lay.count() - 2).widget()
+            pg.body.addWidget(c2)
+            h = QHBoxLayout()
+            h.addWidget(button("Enregistrer", "primary", self._st_enregistrer))
+            h.addWidget(self.st_lien)
+            h.addStretch()
+            pg.body.addLayout(h)
+
+            def maj_plat(_i=0):
+                p = ST.PLATEFORMES[self.st_plat.currentData()]
+                self.st_lien.setText(f'<a href="{p["cle"]}">Où trouver ma clé {p["nom"]} ?</a>' if p["cle"] else "")
+                self.st_ligne_serveur.setVisible(p["type"] == "rtmp_custom")
+                sep.setVisible(p["type"] == "rtmp_custom")
+                if p["serveur"] and self.st_plat.currentData() != actuelle:
+                    self.st_serveur.setText(p["serveur"])
+            self.st_plat.currentIndexChanged.connect(maj_plat)
+            maj_plat()
+            pg.body.addWidget(label("OBS diffuse vers une plateforme à la fois. Pour Twitch, YouTube et Kick en même "
+                                    "temps, passez par un service de multidiffusion (Restream…) et choisissez "
+                                    "« Autre ». La clé reste uniquement dans la configuration d'OBS.", "sub",
+                                    wrap=True))
+        pg.body.addWidget(label("PENDANT LE LIVE", "section"))
+        c3 = Card()
+        r = SettingRow("Mode Stream", "Ne pas déranger, OBS ouvert et fond d'écran au choix, à la main ou "
+                       "à heures fixes.", None, real_icon("", 26, key="concentration"), chevron=True)
+        r.clicked.connect(lambda: self.select("concentration"))
+        c3.add(r)
+        pg.body.addWidget(c3)
+        pg.body.addWidget(self.st_msg)
+        return finish(pg)
+
+    def _st_installer(self):
+        if DEMO:
+            return
+        self.st_msg.setText("Installation d'OBS Studio…")
+        proc = QProcess(self)
+        self._st_proc = proc
+
+        def fini(code, _st):
+            if code == 0:
+                self.open_page("streamer")
+                self.st_msg.setText("OBS Studio est installé. Cliquez sur « Préparer ».")
+            else:
+                self.st_msg.setText("L'installation d'OBS n'a pas abouti." if code not in (126, 127) else "Annulé.")
+        proc.finished.connect(fini)
+        proc.start("pkexec", [HELPER, "streamer-obs"])
+
+    def _st_preparer(self):
+        from . import streamer as ST
+        if DEMO:
+            return
+        if ST.kit_present() and QMessageBox.question(
+                self, "Kit streamer", "Remettre les scènes NounoursOS dans leur état d'origine ?\n\n"
+                "Vos modifications de la collection « NounoursOS » seront perdues ; vos autres scènes ne "
+                "changent pas.") != QMessageBox.StandardButton.Yes:
+            return
+        ST.preparer(ecraser=True)
+        self.open_page("streamer")
+        self.st_msg.setText("Scènes et profil NounoursOS prêts. Ouvrez OBS : au premier lancement, choisissez "
+                            "l'écran à partager quand il le demande.")
+
+    def _st_enregistrer(self):
+        from . import streamer as ST
+        if DEMO:
+            return
+        k = self.st_plat.currentData()
+        cle = self.st_cle.text().strip()
+        avant, a_cle = ST.plateforme()
+        if not cle and (not a_cle or avant != k):
+            self.st_msg.setText(f"Collez d'abord votre clé de stream {ST.PLATEFORMES[k]['nom']}.")
+            return
+        if not cle:            # garder la clé déjà enregistrée
+            import json as _j
+            try:
+                with open(os.path.join(ST.OBS, "basic", "profiles", ST.NOM, "service.json")) as f:
+                    cle = _j.load(f)["settings"].get("key", "")
+            except (OSError, ValueError, KeyError):
+                cle = ""
+        serveur = self.st_serveur.text().strip() if ST.PLATEFORMES[k]["type"] == "rtmp_custom" else None
+        if ST.PLATEFORMES[k]["type"] == "rtmp_custom" and not serveur:
+            self.st_msg.setText("Indiquez l'adresse du serveur.")
+            return
+        if not ST.kit_present():
+            ST.preparer()
+        ST.regler_plateforme(k, cle, serveur)
+        self.st_cle.clear()
+        self.st_cle.setPlaceholderText("Clé enregistrée")
+        self.st_msg.setText(f"Prêt à diffuser sur {ST.PLATEFORMES[k]['nom']}. Dans OBS : « Démarrer le streaming ».")
 
     # Nettoyage --------------------------------------------------------------------------
     GARDER_CACHE = ("nounoursos", "fontconfig", "ksycoca6", "plasmashell", "kwin", "plasma_theme")
