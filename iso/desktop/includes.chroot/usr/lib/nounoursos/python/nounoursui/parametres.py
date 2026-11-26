@@ -9,6 +9,7 @@
 import glob
 import json
 import os
+import subprocess
 import time
 import re
 import shutil
@@ -47,6 +48,8 @@ SECTIONS = [
     [("compte", "NounoursAccount", "user-identity|im-user", HONEY, "N", None, "",
       "compte nounoursaccount connexion nounourscorp pieces profil sites"),
      ("maj", "Mise à jour", "system-software-update", GREY, "M", None, "", "mises a jour version securite"),
+     ("migration", "Venir de Windows", "transform-move|go-next", "#2F6FDB", "W", None, "",
+      "migration windows recuperer fichiers documents favoris ancien ordinateur importer"),
      ("capsule", "Capsule temporelle", "backup|document-save", TEAL, "C", None, "",
       "sauvegarde backup time machine restaurer disque externe fichiers perdus"),
      ("apropos", "À propos", "hwinfo|computer|help-about", GREY, "i", None, "",
@@ -1398,6 +1401,180 @@ class Settings(QMainWindow):
                 self.net_lignes[c].setEnabled(False)
         bouton.setText("Fait ✓")
         bouton.setEnabled(False)
+
+    # Migration depuis Windows --------------------------------------------------------------
+    def page_migration(self):
+        from . import migration as M
+        from PyQt6.QtWidgets import QProgressBar, QFileDialog, QComboBox, QCheckBox
+        pg = page("Venir de Windows", "Récupérez vos documents, photos, musique et favoris depuis Windows, "
+                                      "sur ce disque ou un ancien disque branché. Windows n'est pas modifié : "
+                                      "tout est lu sans rien changer.")
+        self.mig_pg = pg
+        disques = M.disques_windows() if not DEMO else [
+            {"chemin": "/dev/nvme0n1p3", "nom": "Windows", "taille": 254 * 10 ** 9, "montage": None,
+             "bitlocker": False}]
+        card = Card()
+        for d in disques:
+            taille = f"{d['taille'] / 10 ** 9:.0f} Go"
+            if d["bitlocker"]:
+                card.add(SettingRow(f"{d['nom']} ({taille}) · chiffré par BitLocker",
+                                    "Ouvrez-le d'abord dans le gestionnaire de fichiers avec votre clé de "
+                                    "récupération BitLocker, puis revenez ici.", None,
+                                    real_icon("", 26, key="disques")))
+                continue
+            b = button("Ouvrir", "primary", None)
+            b.clicked.connect(lambda _=False, d=d: self._mig_ouvrir(d))
+            card.add(SettingRow(f"{d['nom']} ({taille})", d["chemin"], b, real_icon("", 26, key="disques")))
+        if not disques:
+            card.add(SettingRow("Aucun disque Windows trouvé",
+                                "Branchez l'ancien disque (ou un disque de sauvegarde), puis rouvrez cette page.",
+                                None, real_icon("", 26, key="disques")))
+        autre = SettingRow("Choisir un dossier…", "Une sauvegarde de Windows, une clé USB, un partage réseau…",
+                           None, chevron=True)
+        autre.clicked.connect(lambda: (lambda r: r and self._mig_racine(r))(
+            QFileDialog.getExistingDirectory(self, "Dossier contenant « Users » (ou C:)", "/media")))
+        card.add(autre)
+        pg.body.addWidget(card)
+        self.mig_zone = QWidget()
+        self.mig_zone_l = QVBoxLayout(self.mig_zone)
+        self.mig_zone_l.setContentsMargins(0, 0, 0, 0)
+        pg.body.addWidget(self.mig_zone)
+        self.mig_msg = label("", "sub", wrap=True)
+        pg.body.addWidget(self.mig_msg)
+        if DEMO:
+            self._mig_afficher("/demo", ["Camille"], [
+                {"cle": "Documents", "titre": "Documents", "taille": 3.2e9, "exacte": True},
+                {"cle": "Pictures", "titre": "Images", "taille": 18.4e9, "exacte": False},
+                {"cle": "Music", "titre": "Musique", "taille": 2.1e9, "exacte": True},
+                {"cle": "Desktop", "titre": "Bureau", "taille": 0.3e9, "exacte": True},
+                {"cle": "favoris", "titre": "Favoris des navigateurs (214)", "taille": 0, "exacte": True}])
+        return finish(pg)
+
+    def _mig_ouvrir(self, d):
+        from . import migration as M
+        self.mig_msg.setText("Ouverture du disque Windows (lecture seule)…")
+        QApplication.processEvents()
+        try:
+            racine = d["montage"] or M.monter(d["chemin"])
+        except (RuntimeError, OSError, subprocess.TimeoutExpired) as e:
+            self.mig_msg.setText(str(e))
+            return
+        self._mig_racine(racine)
+
+    def _mig_racine(self, racine):
+        from . import migration as M
+        if not os.path.isdir(os.path.join(racine, "Users")) and os.path.basename(racine.rstrip("/")) == "Users":
+            racine = os.path.dirname(racine.rstrip("/"))
+        comptes = M.comptes(racine)
+        if not comptes:
+            self.mig_msg.setText("Aucun compte Windows trouvé ici (dossier « Users » absent ou vide).")
+            return
+        self.mig_racine = racine
+        self._mig_calculer(comptes[0], comptes)
+
+    def _mig_calculer(self, compte, comptes):
+        from . import migration as M
+        self.mig_msg.setText("Calcul de ce qu'il y a à récupérer…")
+        racine = self.mig_racine
+
+        class Fil(QThread):
+            fini = pyqtSignal(object)
+
+            def run(self):
+                self.fini.emit(M.elements(racine, compte))
+        self._mig_fil = Fil()
+        self._mig_fil.fini.connect(lambda els: self._mig_afficher(racine, comptes, els, compte))
+        self._mig_fil.start()
+
+    def _mig_afficher(self, racine, comptes, elements, compte=None):
+        from PyQt6.QtWidgets import QComboBox, QCheckBox, QProgressBar
+        while self.mig_zone_l.count():
+            w = self.mig_zone_l.takeAt(0).widget()
+            if w:
+                w.deleteLater()
+        self.mig_elements = elements
+        self.mig_zone_l.addWidget(label("COMPTE WINDOWS", "section"))
+        c1 = Card()
+        choix = QComboBox()
+        choix.addItems(comptes)
+        if compte:
+            choix.setCurrentText(compte)
+        choix.currentTextChanged.connect(lambda c: self._mig_calculer(c, comptes))
+        c1.add(SettingRow("Récupérer les fichiers de", None, choix))
+        self.mig_zone_l.addWidget(c1)
+        self.mig_zone_l.addWidget(label("À RÉCUPÉRER", "section"))
+        c2 = Card()
+        self.mig_cases = []
+        for e in elements:
+            t = e["taille"]
+            detail = ("" if e["cle"] == "favoris" else
+                      (("environ " if not e["exacte"] else "") + (f"{t / 1e9:.1f} Go".replace(".", ",") if t >= 1e8
+                                                                    else f"{t / 1e6:.0f} Mo" if t >= 1e6
+                                                                    else f"{max(1, t / 1e3):.0f} Ko" if t
+                                                                    else "vide")))
+            if e["cle"] == "favoris":
+                detail = "Un fichier à importer dans votre navigateur"
+            case = Toggle(e["cle"] != "OneDrive")
+            self.mig_cases.append((case, e))
+            c2.add(SettingRow(e["titre"], detail, case))
+        self.mig_zone_l.addWidget(c2)
+        libre = shutil.disk_usage(os.path.expanduser("~")).free
+        self.mig_zone_l.addWidget(label(f"Espace libre sur NounoursOS : {libre / 1e9:.0f} Go. Les fichiers déjà "
+                                        "présents ne sont jamais remplacés.", "sub", wrap=True))
+        self.mig_btn = button("Récupérer dans NounoursOS", "primary", self._mig_copier)
+        self.mig_zone_l.addWidget(self.mig_btn, 0, Qt.AlignmentFlag.AlignLeft)
+        self.mig_prog = QProgressBar()
+        self.mig_prog.setRange(0, 100)
+        self.mig_prog.hide()
+        self.mig_zone_l.addWidget(self.mig_prog)
+        self.mig_msg.setText("")
+
+    def _mig_copier(self):
+        from . import migration as M
+        choisis = [e for case, e in self.mig_cases if case.isChecked()]
+        if not choisis:
+            return
+        total = sum(e["taille"] for e in choisis) or 1
+        if DEMO:
+            self.mig_msg.setText("[démo] copie")
+            return
+        if sum(e["taille"] for e in choisis) > shutil.disk_usage(os.path.expanduser("~")).free * 0.95:
+            self.mig_msg.setText("Pas assez de place sur NounoursOS pour tout récupérer : décochez quelque chose.")
+            return
+
+        class Fil(QThread):
+            avance = pyqtSignal(int, str)
+            fini = pyqtSignal(list)
+
+            def run(self):
+                fait, erreurs = 0, []
+                for e in choisis:
+                    def prog(pc, e=e, fait=fait):
+                        self.avance.emit(int((fait + e["taille"] * pc / 100) * 100 / total), e["titre"])
+                    self.avance.emit(int(fait * 100 / total), e["titre"])
+                    if not M.copier(e, prog):
+                        erreurs.append(e["titre"])
+                    fait += e["taille"]
+                self.fini.emit(erreurs)
+        self.mig_btn.setEnabled(False)
+        self.mig_prog.setValue(0)
+        self.mig_prog.show()
+        self._mig_copie = Fil()
+        self._mig_copie.avance.connect(lambda pc, t: (self.mig_prog.setValue(pc),
+                                                      self.mig_msg.setText(f"Copie : {t}…")))
+
+        def fin(erreurs):
+            self.mig_prog.hide()
+            self.mig_btn.setEnabled(True)
+            fav = any(e["cle"] == "favoris" for e in choisis)
+            txt = "Terminé ! Vos fichiers sont dans vos dossiers habituels." if not erreurs else \
+                "Terminé, mais certains fichiers n'ont pas pu être lus : " + ", ".join(erreurs) + "."
+            if fav:
+                txt += (" Favoris : dans votre navigateur, menu Favoris › Importer, puis choisissez "
+                        "« Favoris importés de Windows.html » dans Documents.")
+            self.mig_msg.setText(txt)
+        self._mig_copie.fini.connect(fin)
+        self._mig_copie.start()
 
     # Capsule temporelle ----------------------------------------------------------------
     def page_capsule(self):
