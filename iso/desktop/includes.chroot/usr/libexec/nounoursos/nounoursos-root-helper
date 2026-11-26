@@ -73,5 +73,26 @@ CONF
     run_maj "$1" 2>&1 | tee -a "$LOG"
     exit "${PIPESTATUS[0]:-0}"
     ;;
+  instantane-preparer)
+    # Retour en arrière : configure snapper (système en Btrfs uniquement)
+    /usr/libexec/nounoursos/nounoursos-instantanes
+    [ -f /etc/snapper/configs/root ] || { echo "Le système n'est pas en Btrfs." >&2; exit 3; }
+    ;;
+  instantane-creer)
+    d=$(printf '%s' "${2:-Point de restauration}" | tr -cd '[:alnum:] àâäçéèêëîïôöùûüÿÀÂÇÉÈÊËÎÔÙÛ._:()-' | cut -c1-80)
+    snapper -c root create -c number -d "$d" --userdata "important=yes" -p
+    ;;
+  instantane-restaurer)
+    # Remet les fichiers du système (hors /home, journaux et cache) dans l'état de l'instantané N
+    case "$2" in ''|*[!0-9]*) echo "usage: instantane-restaurer <numéro>" >&2; exit 2 ;; esac
+    [ "$2" -gt 0 ] || exit 2
+    snapper -c root create -c number -d "Avant le retour à l'instantané $2" -p >/dev/null
+    snapper -c root undochange "$2..0"
+    ;;
+  instantane-supprimer)
+    case "$2" in ''|*[!0-9]*) echo "usage: instantane-supprimer <numéro>" >&2; exit 2 ;; esac
+    [ "$2" -gt 0 ] || exit 2
+    snapper -c root delete "$2"
+    ;;
   *) echo "Action inconnue : $1" >&2; exit 2 ;;
 esac

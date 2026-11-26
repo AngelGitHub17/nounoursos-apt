@@ -69,6 +69,25 @@ done
 echo "[NounoursOS] Droits des outils NounoursOS"
 chmod 755 /usr/bin/nounoursos-* /usr/libexec/nounoursos/*
 systemctl enable nounoursos-maj-demarrage.service || true
+# Retour en arrière : instantanés Btrfs préparés au premier démarrage de la machine installée
+systemctl enable nounoursos-instantanes.service || true
+# Calamares : sous-volumes Btrfs (journaux et cache à part, pour qu'un retour en arrière ne les touche pas)
+M=/etc/calamares/modules/mount.conf
+if [ -f "$M" ] && ! grep -q '^btrfsSubvolumes:' "$M"; then
+  cat >> "$M" <<'CONF'
+
+btrfsSubvolumes:
+    - mountPoint: /
+      subvolume: /@
+    - mountPoint: /home
+      subvolume: /@home
+    - mountPoint: /var/log
+      subvolume: /@log
+    - mountPoint: /var/cache
+      subvolume: /@cache
+btrfsSwapSubvol: /@swap
+CONF
+fi
 python3 -m compileall -q /usr/lib/nounoursos/python || true
 
 echo "[NounoursOS] Initramfs (pour prendre en compte Plymouth)"

@@ -1,0 +1,12 @@
+[Unit]
+Description=NounoursOS : préparer les instantanés du système (Btrfs)
+ConditionPathExists=!/etc/snapper/configs/root
+ConditionPathExists=/usr/bin/snapper
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/nounoursos/nounoursos-instantanes
+
+[Install]
+WantedBy=multi-user.target

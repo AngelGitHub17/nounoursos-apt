@@ -1,0 +1,23 @@
+#!/bin/sh
+# NounoursOS — prépare les instantanés du système (Retour en arrière).
+# Seulement si / est en Btrfs ; sans effet sinon. Lancé au démarrage, une fois.
+set -e
+[ "$(findmnt -no FSTYPE /)" = "btrfs" ] || exit 0
+command -v snapper >/dev/null || exit 0
+if [ ! -f /etc/snapper/configs/root ]; then
+  snapper --no-dbus -c root create-config /
+fi
+C=/etc/snapper/configs/root
+regler() { if grep -q "^$1=" "$C"; then sed -i "s|^$1=.*|$1=\"$2\"|" "$C"; else echo "$1=\"$2\"" >> "$C"; fi; }
+regler TIMELINE_CREATE no          # pas d'instantané toutes les heures : avant/après chaque mise à jour suffit
+regler NUMBER_CLEANUP yes
+regler NUMBER_LIMIT 12             # 6 mises à jour (avant + après) gardées
+regler NUMBER_LIMIT_IMPORTANT 6
+regler ALLOW_GROUPS sudo           # les administrateurs voient la liste sans mot de passe
+regler SYNC_ACL yes
+# /home est un sous-volume à part : vos documents ne reviennent jamais en arrière
+systemctl enable --now snapper-cleanup.timer >/dev/null 2>&1 || true
+systemctl disable --now snapper-timeline.timer >/dev/null 2>&1 || true
+if ! snapper --no-dbus -c root list --columns description 2>/dev/null | grep -q "Installation de NounoursOS"; then
+  snapper --no-dbus -c root create -c important -d "Installation de NounoursOS" || true
+fi

@@ -225,7 +225,8 @@ Depends: nounoursos-release, python3, python3-pyqt6, packagekit, packagekit-tool
 Recommends: unattended-upgrades, pciutils, xdg-user-dirs, kde-cli-tools,
  winboat, docker.io, docker-compose, freerdp3-x11, nounours-launcher, nounours-browser,
  flatpak, plasma-discover-backend-flatpak, swayidle, fprintd, libpam-fprintd, fonts-inter,
- ksystemstats, qml6-module-org-kde-ksysguard
+ ksystemstats, qml6-module-org-kde-ksysguard, snapper, btrfs-progs,
+ python3-pyqt6.qtpdf, python3-pyqt6.qtmultimedia, poppler-utils, localsend
 Homepage: https://nounourscorp.fr/
 Description: Bureau NounoursOS : applications, thème et fonds d'écran
  Paramètres, assistant de bienvenue, Mise à jour de NounoursOS,
@@ -240,6 +241,9 @@ if [ "$1" = "configure" ]; then
   # « Redémarrer et mettre à jour » : service d'installation au démarrage
   if [ -d /run/systemd/system ]; then systemctl daemon-reload || true; fi
   systemctl enable nounoursos-maj-demarrage.service >/dev/null 2>&1 || true
+  # Retour en arrière : prépare snapper si le système est en Btrfs (sans effet sinon)
+  systemctl enable nounoursos-instantanes.service >/dev/null 2>&1 || true
+  if [ -d /run/systemd/system ]; then systemctl start --no-block nounoursos-instantanes.service >/dev/null 2>&1 || true; fi
   # Curseur NounoursOS par défaut, aussi pour les applications hors KDE
   update-alternatives --install /usr/share/icons/default/index.theme x-cursor-theme \
     /usr/share/icons/NounoursOS/cursor.theme 95 >/dev/null 2>&1 || true

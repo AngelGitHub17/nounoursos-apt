@@ -16,7 +16,7 @@ import shutil
 import socket
 import sys
 
-from PyQt6.QtCore import Qt, QSize, QRectF, QTimer, QFileSystemWatcher, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QSize, QRectF, QTimer, QFileSystemWatcher, QThread, pyqtSignal, QProcess
 from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor, QFont
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
                              QListWidget, QListWidgetItem, QStackedWidget, QLineEdit, QLabel,
@@ -50,6 +50,8 @@ SECTIONS = [
      ("maj", "Mise à jour", "system-software-update", GREY, "M", None, "", "mises a jour version securite"),
      ("migration", "Venir de Windows", "transform-move|go-next", "#2F6FDB", "W", None, "",
       "migration windows recuperer fichiers documents favoris ancien ordinateur importer"),
+     ("retour", "Retour en arrière", "edit-undo|document-revert", "#C2410C", "R", None, "",
+      "instantane instantanes snapshot snapper restaurer restauration point btrfs annuler mise a jour"),
      ("capsule", "Capsule temporelle", "backup|document-save", TEAL, "C", None, "",
       "sauvegarde backup time machine restaurer disque externe fichiers perdus"),
      ("apropos", "À propos", "hwinfo|computer|help-about", GREY, "i", None, "",
@@ -1575,6 +1577,145 @@ class Settings(QMainWindow):
             self.mig_msg.setText(txt)
         self._mig_copie.fini.connect(fin)
         self._mig_copie.start()
+
+    # Retour en arrière (instantanés Btrfs + snapper) ------------------------------------------
+    def _instantanes(self):
+        """None si non configuré, sinon [{numero, type, pre, date, description, important}] du plus récent au plus ancien."""
+        if DEMO:
+            return [{"numero": 14, "type": "pre", "pre": None, "date": "2026-11-26 09:12:03",
+                     "description": "apt", "important": False},
+                    {"numero": 9, "type": "single", "pre": None, "date": "2026-11-20 18:30:44",
+                     "description": "Avant d'essayer un pilote", "important": True},
+                    {"numero": 1, "type": "single", "pre": None, "date": "2026-11-02 14:01:10",
+                     "description": "Installation de NounoursOS", "important": True}]
+        if not os.path.exists("/etc/snapper/configs/root"):
+            return None
+        try:
+            out = subprocess.run(["snapper", "--jsonout", "-c", "root", "list"], capture_output=True,
+                                 text=True, timeout=20).stdout
+            liste = json.loads(out).get("root", [])
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            return []
+        res = []
+        for x in liste:
+            if not x.get("number") or x.get("type") == "post":
+                continue        # l'état « après » d'une mise à jour : on propose de revenir à l'état « avant »
+            res.append({"numero": x["number"], "type": x.get("type"), "pre": x.get("pre-number"),
+                        "date": x.get("date") or "", "description": x.get("description") or "",
+                        "important": (x.get("userdata") or {}).get("important") == "yes"
+                        or x.get("cleanup") == "important"})
+        return sorted(res, key=lambda x: x["numero"], reverse=True)
+
+    @staticmethod
+    def _date_fr(d):
+        import datetime
+        try:
+            t = datetime.datetime.strptime(d[:19], "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            return d
+        mois = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre",
+                "octobre", "novembre", "décembre"]
+        return f"{t.day} {mois[t.month - 1]} {t.year} à {t.hour:02d} h {t.minute:02d}"
+
+    def page_retour(self):
+        pg = page("Retour en arrière", "Une mise à jour ou un réglage a cassé quelque chose ? Remettez le "
+                                       "système dans l'état d'avant. Vos documents (dossier personnel) ne "
+                                       "bougent jamais.")
+        liste = self._instantanes()
+        self.ret_msg = label("", "sub", wrap=True)
+        if liste is None:
+            try:
+                fs = subprocess.run(["findmnt", "-no", "FSTYPE", "/"], capture_output=True, text=True,
+                                    timeout=5).stdout.strip()
+            except (OSError, subprocess.TimeoutExpired):
+                fs = ""
+            card = Card()
+            if fs == "btrfs":
+                b = button("Activer", "primary", lambda: self._ret_action(["instantane-preparer"],
+                                                                         "Activation…", "Retour en arrière activé."))
+                card.add(SettingRow("Activer le retour en arrière",
+                                    "Un instantané est pris avant et après chaque mise à jour ; les plus anciens "
+                                    "sont effacés tout seuls.", b, real_icon("", 26, key="retour")))
+            else:
+                card.add(SettingRow("Indisponible sur cette installation",
+                                    f"Les instantanés demandent le système de fichiers Btrfs (celui-ci : "
+                                    f"{fs or 'inconnu'}). Btrfs est choisi par défaut par l'installateur "
+                                    "depuis NounoursOS 1.4.", None, real_icon("", 26, key="retour")))
+            pg.body.addWidget(card)
+            pg.body.addWidget(self.ret_msg)
+            return finish(pg)
+
+        card = Card()
+        from PyQt6.QtWidgets import QLineEdit
+        self.ret_nom = QLineEdit()
+        self.ret_nom.setPlaceholderText("Nom (facultatif)")
+        self.ret_nom.setFixedWidth(200)
+        cr = QWidget()
+        h = QHBoxLayout(cr)
+        h.setContentsMargins(0, 0, 0, 0)
+        h.addWidget(self.ret_nom)
+        h.addWidget(button("Créer", "primary", lambda: self._ret_action(
+            ["instantane-creer", self.ret_nom.text().strip() or "Point de restauration"],
+            "Création…", "Point de restauration créé.")))
+        card.add(SettingRow("Créer un point de restauration", "Avant d'installer un pilote ou de modifier "
+                            "le système, par exemple.", cr, real_icon("", 26, key="retour")))
+        pg.body.addWidget(card)
+        pg.body.addWidget(label("ÉTATS ENREGISTRÉS", "section"))
+        card2 = Card()
+        if not liste:
+            card2.add(SettingRow("Aucun instantané pour l'instant",
+                                 "Le premier sera pris à la prochaine mise à jour.", None))
+        for x in liste:
+            desc = x["description"]
+            if x["type"] == "pre" or desc in ("apt", "Avant mise à jour"):
+                titre = "Avant une mise à jour du système"
+            elif desc.startswith("Avant le retour"):
+                titre = "Avant un retour en arrière"
+            else:
+                titre = desc or f"Instantané n° {x['numero']}"
+            b = button("Revenir ici", "", None)
+            b.clicked.connect(lambda _=False, x=x, t=titre: self._ret_restaurer(x, t))
+            card2.add(SettingRow(titre, self._date_fr(x["date"]) + ("  ·  conservé" if x["important"] else ""), b))
+        pg.body.addWidget(card2)
+        pg.body.addWidget(label("Les instantanés ne remplacent pas une sauvegarde : ils sont sur le même disque. "
+                                "Pour vos documents, utilisez la Capsule temporelle.", "sub", wrap=True))
+        pg.body.addWidget(self.ret_msg)
+        return finish(pg)
+
+    def _ret_restaurer(self, x, titre):
+        r = QMessageBox.question(
+            self, "Retour en arrière",
+            f"Remettre le système dans l'état « {titre} » ({self._date_fr(x['date'])}) ?\n\n"
+            "Les programmes et réglages du système reviendront à cet état. Vos documents ne changent pas. "
+            "Un instantané de l'état actuel est pris avant, pour pouvoir annuler. "
+            "Il faudra redémarrer ensuite.")
+        if r != QMessageBox.StandardButton.Yes:
+            return
+        self._ret_action(["instantane-restaurer", str(x["numero"])], "Retour en arrière en cours…",
+                         "C'est fait. Redémarrez pour terminer.", redemarrer=True)
+
+    def _ret_action(self, args, pendant, apres, redemarrer=False):
+        if DEMO:
+            self.ret_msg.setText("[démo] " + " ".join(args))
+            return
+        self.ret_msg.setText(pendant)
+        proc = QProcess(self)
+        self._ret_proc = proc
+
+        def fini(code, _st):
+            if code == 0:
+                self.open_page("retour")
+                self.ret_msg.setText(apres)
+                if redemarrer and QMessageBox.question(self, "Retour en arrière", "Redémarrer maintenant ?") \
+                        == QMessageBox.StandardButton.Yes:
+                    subprocess.Popen(["systemctl", "reboot"])
+            elif code in (126, 127):
+                self.ret_msg.setText("Annulé.")
+            else:
+                err = bytes(proc.readAllStandardError()).decode(errors="ignore").strip().splitlines()
+                self.ret_msg.setText("Échec : " + (err[-1] if err else f"code {code}"))
+        proc.finished.connect(fini)
+        proc.start("pkexec", [HELPER] + args)
 
     # Capsule temporelle ----------------------------------------------------------------
     def page_capsule(self):

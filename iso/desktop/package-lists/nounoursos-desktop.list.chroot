@@ -85,3 +85,5 @@ filelight
 python3-pyqt6.qtpdf
 python3-pyqt6.qtmultimedia
 poppler-utils
+snapper
+btrfs-progs
